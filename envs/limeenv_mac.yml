@@ -1,4 +1,4 @@
-name: limeenv-test
+name: limeenv
 channels:
   - defaults
 dependencies:
