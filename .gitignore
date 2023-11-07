@@ -1,5 +1,3 @@
 __pycache__
-/embeddings/*
-/results/*
 .DS_Store
 *.pyc
