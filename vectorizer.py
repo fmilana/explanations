@@ -39,7 +39,7 @@ class Sentence2Vec:
         # alpha-numericals and spaces
         sentence = re.sub(r'[^A-Za-z0-9\s]', r'', str(sentence).lower())
         # get word vectors from model
-        word_vectors = [self.model.wv[word] for word in word_tokenize(sentence) if word in self.model.wv]
+        word_vectors = [self.model[word] for word in word_tokenize(sentence) if word in self.model]
         # create empty sentence vector
         sentence_vector = np.zeros(self.model.vector_size)
         # sentence vector equals average of word vectors
