@@ -1,5 +1,7 @@
 import numpy as np
 import pandas as pd
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.neural_network import MLPClassifier
 from preprocess import remove_stop_words
 from sklearn.linear_model import LogisticRegression
 from sklearn.tree import DecisionTreeClassifier
@@ -113,9 +115,9 @@ categories = ["food and drinks", "place", "people", "opinions"]
 # PLACE
 # sentence = "To the right, in a small parade, there's Neat Burger, knocking out pea protein and corn-based patties, \
 #     dyed what they think are the right colours by the addition of beetroot and turmeric."
-sentence = "Now, the upstairs dining room has parquet floors, comfortable midcentury modern tan leather chairs and a kitchen with principles."
+# sentence = "Now, the upstairs dining room has parquet floors, comfortable midcentury modern tan leather chairs and a kitchen with principles."
 # sentence = "But the most interesting of these three restaurants on Princes Street, tucked in together for comfort, is in the middle."
-# sentence = "Tendril started as a pop-up, first in a Soho pub, then later here, on this narrow site just south of Oxford Street."
+sentence = "Tendril started as a pop-up, first in a Soho pub, then later here, on this narrow site just south of Oxford Street."
 
 # PEOPLE
 # sentence = "Head chef Graham Chatham, who has cooked at Rules and Daylesford Organic, treats them with old school care, attention and at times, maternal indulgence."
@@ -143,22 +145,24 @@ n_samples_list = [
     4000,
     5000,
     10000,
-    # 15000,
-    # 20000,
-    # 25000,
-    # 30000
+    15000,
+    20000,
+    25000,
+    30000
     ]
 
 # eli5
 for n_samples in n_samples_list:
     text_explainer = TextExplainer(
+        # clf=DecisionTreeClassifier(max_depth=n_samples),
+        # clf=RandomForestClassifier(max_depth=None, n_estimators=100, max_features=None, random_state=42),
         n_samples=n_samples,
         position_dependent=True,
         random_state=42
     )
 
     print(f"calling explain_pred with n_samples={n_samples}")
-    explain_pred(text_explainer, pipeline, categories, remove_stop_words(sentence))
+    explain_pred(text_explainer, pipeline, categories, sentence)
 
 # lime
 # https://marcotcr.github.io/lime/tutorials/Lime%20-%20multiclass.html
