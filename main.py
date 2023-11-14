@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
+from preprocess import remove_stop_words
 from sklearn.linear_model import LogisticRegression
+from sklearn.tree import DecisionTreeClassifier
 from augment import MLSMOTE, get_minority_samples
 from vectorizer import Sentence2Vec
 from sklearn.multioutput import ClassifierChain
@@ -57,13 +59,14 @@ class MultiLabelProbClassifier(BaseEstimator, ClassifierMixin):
             print("minority classes found.")
             print("oversampling...")
             try:
-                X_res, Y_res = MLSMOTE(X_sub, Y_sub, round(X.shape[0]/5), 5)       
+                X_res, Y_res = MLSMOTE(X_sub, Y_sub, round(X.shape[0]/5))       
                 X = np.concatenate((X, X_res.to_numpy())) # append augmented samples
                 Y = np.concatenate((Y, Y_res.to_numpy())) # to original dataframes
                 print("oversampled.")
                 class_dist_os = [y/Y.shape[0] for y in Y.sum(axis=0)]
-                print(f"BEFORE MLSMOTE: {X_shape_old}, {class_dist}")
-                print(f"AFTER MLSMOTE: {X.shape}, {class_dist_os}")
+                print("CLASS DISTRIBUTION:")
+                print(f"Before MLSMOTE: {X_shape_old}, {class_dist}")
+                print(f"After MLSMOTE: {X.shape}, {class_dist_os}")
             except ValueError:
                 print("could not oversample because n_samples < n_neighbors in some classes")
         else:
@@ -103,14 +106,14 @@ pipeline.fit(X_train, Y_train)
 categories = ["food and drinks", "place", "people", "opinions"]
 
 # FOOD AND DRINKS
-sentence = "They will even make you a burger in which the bun has been substituted for two halves of an avocado."
+# sentence = "They will even make you a burger in which the bun has been substituted for two halves of an avocado."
 # sentence = "But the word-spaghetti of the menu descriptions – 'aubergine, kalamatas, tahini' reads one; \
 # 'grilled beetroot, spring onion, smoked soy' reads another – is so alluring, so well lubricated with promise, that I give myself to it happily."
 
 # PLACE
 # sentence = "To the right, in a small parade, there's Neat Burger, knocking out pea protein and corn-based patties, \
 #     dyed what they think are the right colours by the addition of beetroot and turmeric."
-# sentence = "Now, the upstairs dining room has parquet floors, comfortable midcentury modern tan leather chairs and a kitchen with principles."
+sentence = "Now, the upstairs dining room has parquet floors, comfortable midcentury modern tan leather chairs and a kitchen with principles."
 # sentence = "But the most interesting of these three restaurants on Princes Street, tucked in together for comfort, is in the middle."
 # sentence = "Tendril started as a pop-up, first in a Soho pub, then later here, on this narrow site just south of Oxford Street."
 
@@ -132,14 +135,30 @@ open('results/explanations.txt', 'w').close()
 open('results/explanations.html', 'w').close()
 print("cleared explanations.txt and explanations.html")
 
-n_samples_list = [300, 1000, 2000, 3000, 4000, 5000, 10000, 15000, 20000, 25000, 30000]
+n_samples_list = [
+    300,
+    1000,
+    2000,
+    3000,
+    4000,
+    5000,
+    10000,
+    # 15000,
+    # 20000,
+    # 25000,
+    # 30000
+    ]
 
 # eli5
 for n_samples in n_samples_list:
-    text_explainer = TextExplainer(random_state=42, n_samples=n_samples, position_dependent=True)
+    text_explainer = TextExplainer(
+        n_samples=n_samples,
+        position_dependent=True,
+        random_state=42
+    )
 
     print(f"calling explain_pred with n_samples={n_samples}")
-    explain_pred(text_explainer, pipeline, categories, sentence)
+    explain_pred(text_explainer, pipeline, categories, remove_stop_words(sentence))
 
 # lime
 # https://marcotcr.github.io/lime/tutorials/Lime%20-%20multiclass.html
