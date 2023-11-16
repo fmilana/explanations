@@ -45,15 +45,13 @@ pipeline.fit(X_train, Y_train)
 
 explainer = shap.Explainer(pipeline.predict, custom_tokenizer)
 
-sentence = [
-    "They will even make you a burger in which the bun has been substituted for two halves of an avocado.",
-    # "Tendril started as a pop-up, first in a Soho pub, then later here, on this narrow site just south of Oxford Street.",
-    # "Head chef Graham Chatham, who has cooked at Rules and Daylesford Organic, treats them with old school care, attention and at times, maternal indulgence.",
-    # "The service is sometimes chaotic but, like a primary school ballet class, always enthusiastic.",
-    # "That's exactly what you would expect of a chef like Shaun Moffat, who has cooked in London at the \
-    # Middle Eastern-inflected Berber & Q, and at the cheerfully iconoclastic Manteca, which treats the Italian \
-    # classics as a mere opening position in a ribald negotiation."
-]
+sentence = "They will even make you a burger in which the bun has been substituted for two halves of an avocado.",
+# sentence = "Tendril started as a pop-up, first in a Soho pub, then later here, on this narrow site just south of Oxford Street.",
+# sentence = "Head chef Graham Chatham, who has cooked at Rules and Daylesford Organic, treats them with old school care, attention and at times, maternal indulgence.",
+# sentence = "The service is sometimes chaotic but, like a primary school ballet class, always enthusiastic.",
+# sentence = "That's exactly what you would expect of a chef like Shaun Moffat, who has cooked in London at the \
+#     Middle Eastern-inflected Berber & Q, and at the cheerfully iconoclastic Manteca, which treats the Italian \
+#     classics as a mere opening position in a ribald negotiation."
 
 print(f"pipeline.predict(sentences) = {pipeline.predict([sentence])}")
 
