@@ -80,11 +80,11 @@ def explain_pred(text_explainer, pipeline, categories, sentence):
     text_explainer.fit(sentence, pipeline.predict_proba)
     prediction = text_explainer.explain_prediction(target_names=categories)
     txt = format_as_text(prediction)
-    txt_file = open("results/explanations.txt", "a+")
+    txt_file = open("results/lime.txt", "a+")
     txt_file.write(txt)
     txt_file.close()
     html = format_as_html(prediction)
-    html_file = open("results/explanations.html", "a+")
+    html_file = open("results/lime.html", "a+")
     html_file.write(html)
     html_file.close()
     print(text_explainer.metrics_)
@@ -132,10 +132,10 @@ sentence = "Tendril started as a pop-up, first in a Soho pub, then later here, o
 # sentence = "Just go elsewhere afterwards for an ice-cream."
 # sentence = "Importantly though, it is good value."
 
-# clear explanations.txt and explanations.html
-open('results/explanations.txt', 'w').close()
-open('results/explanations.html', 'w').close()
-print("cleared explanations.txt and explanations.html")
+# clear lime.txt and lime.html
+open('results/lime.txt', 'w').close()
+open('results/lime.html', 'w').close()
+print("cleared lime.txt and lime.html")
 
 n_samples_list = [
     300,
