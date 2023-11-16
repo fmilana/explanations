@@ -1,80 +1,19 @@
-from pathlib import Path
-import numpy as np
 import pandas as pd
+import numpy as np
+from pathlib import Path
+from classifier import MultiLabelProbClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.neural_network import MLPClassifier
 from preprocess import remove_stop_words
 from sklearn.linear_model import LogisticRegression
 from sklearn.tree import DecisionTreeClassifier
-from augment import MLSMOTE, get_minority_samples
 from vectorizer import Sentence2Vec
 from sklearn.multioutput import ClassifierChain
-from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.pipeline import make_pipeline
 from eli5 import format_as_text, format_as_html
 from eli5.lime import TextExplainer
 # from lime.lime_text import LimeTextExplainer
 from xgboost import XGBClassifier
-
-
-# from https://github.com/TeamHG-Memex/eli5/issues/337
-class MultiLabelProbClassifier(BaseEstimator, ClassifierMixin):
-
-    def __init__(self, chains):
-        self.chains = chains # XGBoost chains
-
-    def fit(self, X, Y): # fit the XGBoost chains
-        X, Y = self.oversample(X, Y) # oversample minority classes
-        for i, chain in enumerate(self.chains): # fit each XGBoost chain
-            chain.fit(X, Y)
-            print(f"{i+1}/{len(self.chains)} chains fit")
-
-    def predict(self, X): # get predictions from the XGBoost chains
-        return np.rint(np.array([chain.predict(X) for chain in self.chains]).mean(axis=0)).astype(int) # predict with the XGBoost chains
-    
-    def predict_proba(self, X): # get prediction probas from the XGBoost chains
-        if len(X) == 1:
-            self.probas_ = np.array([chain.predict_proba(X) for chain in self.chains]).mean(axis=0)[0]
-            sums_to = sum(self.probas_)
-            new_probs = [x / sums_to for x in self.probas_]
-            return new_probs
-        else:
-            self.probas_ = np.array([chain.predict_proba(X) for chain in self.chains]).mean(axis=0)
-            print(self.probas_)
-            ret_list = []
-            for list_of_probs in self.probas_:
-                sums_to = sum(list_of_probs)
-                # print(sums_to)
-                new_probs = [x / sums_to for x in list_of_probs]
-                ret_list.append(np.asarray(new_probs))
-            return np.asarray(ret_list)
-    
-    def oversample(self, X, Y):
-        X_shape_old = X.shape
-        class_dist = [y/Y.shape[0] for y in Y.sum(axis=0)]
-        print("checking for minority classes in train split...")
-        X_sub, Y_sub = get_minority_samples(pd.DataFrame(X), pd.DataFrame(Y))
-
-        # print(f"X_sub: {X_sub}")
-        # print(f"Y_sub: {Y_sub}")
-
-        if np.shape(X_sub)[0] > 0: # only oversample training set if minority samples are found
-            print("minority classes found.")
-            print("oversampling...")
-            try:
-                X_res, Y_res = MLSMOTE(X_sub, Y_sub, round(X.shape[0]/5))       
-                X = np.concatenate((X, X_res.to_numpy())) # append augmented samples
-                Y = np.concatenate((Y, Y_res.to_numpy())) # to original dataframes
-                print("oversampled.")
-                class_dist_os = [y/Y.shape[0] for y in Y.sum(axis=0)]
-                print("CLASS DISTRIBUTION:")
-                print(f"Before MLSMOTE: {X_shape_old}, {class_dist}")
-                print(f"After MLSMOTE: {X.shape}, {class_dist_os}")
-            except ValueError:
-                print("could not oversample because n_samples < n_neighbors in some classes")
-        else:
-            print("no minority classes.")
-        return X, Y
 
 
 def explain_pred(text_explainer, pipeline, categories, sentence):
@@ -93,7 +32,7 @@ def explain_pred(text_explainer, pipeline, categories, sentence):
 
 train_df = pd.read_csv("data/train.csv")
 
-X_train = np.array(train_df["sentence_embedding"].tolist())
+X_train = train_df["original_sentence"].tolist()
 Y_train = np.array(train_df.iloc[:, 2:])
 
 clf = XGBClassifier()
@@ -102,8 +41,12 @@ chains = [ClassifierChain(clf, order="random", random_state=i) for i in range(nu
 
 model = MultiLabelProbClassifier(chains)
 
-pipeline = make_pipeline(Sentence2Vec(), model) 
+print("calling make_pipeline")
+pipeline = make_pipeline(Sentence2Vec(), model)
+print("done calling make_pipeline")
+print("calling pipeline.fit")
 pipeline.fit(X_train, Y_train)
+print("done calling pipeline.fit")
 
 
 categories = ["food and drinks", "place", "people", "opinions"]
@@ -115,10 +58,10 @@ categories = ["food and drinks", "place", "people", "opinions"]
 
 # PLACE
 # sentence = "To the right, in a small parade, there's Neat Burger, knocking out pea protein and corn-based patties, \
-#     dyed what they think are the right colours by the addition of beetroot and turmeric."
+# #     dyed what they think are the right colours by the addition of beetroot and turmeric."
 # sentence = "Now, the upstairs dining room has parquet floors, comfortable midcentury modern tan leather chairs and a kitchen with principles."
 # sentence = "But the most interesting of these three restaurants on Princes Street, tucked in together for comfort, is in the middle."
-sentence = "Tendril started as a pop-up, first in a Soho pub, then later here, on this narrow site just south of Oxford Street."
+# sentence = "Tendril started as a pop-up, first in a Soho pub, then later here, on this narrow site just south of Oxford Street."
 
 # PEOPLE
 # sentence = "Head chef Graham Chatham, who has cooked at Rules and Daylesford Organic, treats them with old school care, attention and at times, maternal indulgence."
@@ -128,10 +71,13 @@ sentence = "Tendril started as a pop-up, first in a Soho pub, then later here, o
 # classics as a mere opening position in a ribald negotiation."
 
 # OPINIONS
-# sentence = "There's an awful lot going on here."
+sentence = "There's an awful lot going on here."
 # sentence = "It's restless but focused and jolly."
 # sentence = "Just go elsewhere afterwards for an ice-cream."
 # sentence = "Importantly though, it is good value."
+
+print(f"pipeline.predict(sentences) = {pipeline.predict([sentence])}")
+
 
 # clear lime.txt and lime.html
 if Path("results/lime.txt"):
@@ -155,7 +101,7 @@ n_samples_list = [
     30000
     ]
 
-# eli5
+# eli5 (lime)
 for n_samples in n_samples_list:
     text_explainer = TextExplainer(
         # clf=DecisionTreeClassifier(max_depth=n_samples),
@@ -167,6 +113,7 @@ for n_samples in n_samples_list:
 
     print(f"calling explain_pred with n_samples={n_samples}")
     explain_pred(text_explainer, pipeline, categories, sentence)
+
 
 # lime
 # https://marcotcr.github.io/lime/tutorials/Lime%20-%20multiclass.html

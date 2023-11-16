@@ -24,8 +24,13 @@ conda env create -f expenv_win.yml
 conda activate expenv
 ```
 
-3) Run LIME (results stored in lime.txt and lime.html files in the results folder):
+Run LIME (results stored in lime.txt and lime.html files in the results folder):
 
 ```
-python LIME.py
+python run_lime.py
+```
+
+Run SHAP
+```
+python run_shap.py
 ```
