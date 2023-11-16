@@ -1,3 +1,4 @@
+from pathlib import Path
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
@@ -12,7 +13,7 @@ from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.pipeline import make_pipeline
 from eli5 import format_as_text, format_as_html
 from eli5.lime import TextExplainer
-from lime.lime_text import LimeTextExplainer
+# from lime.lime_text import LimeTextExplainer
 from xgboost import XGBClassifier
 
 
@@ -133,9 +134,12 @@ sentence = "Tendril started as a pop-up, first in a Soho pub, then later here, o
 # sentence = "Importantly though, it is good value."
 
 # clear lime.txt and lime.html
-open('results/lime.txt', 'w').close()
-open('results/lime.html', 'w').close()
-print("cleared lime.txt and lime.html")
+if Path("results/lime.txt"):
+    open('results/lime.txt', 'w').close()
+    print("cleared lime.txt")
+if Path("results/lime.html"):
+    open('results/lime.html', 'w').close()
+    print("cleared lime.html")
 
 n_samples_list = [
     300,

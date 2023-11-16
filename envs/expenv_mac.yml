@@ -39,4 +39,4 @@ dependencies:
     - tqdm==4.66.1
     - tzdata==2023.3
     - xgboost==2.0.1
-prefix: /opt/miniconda3/envs/limeenv
+prefix: /opt/miniconda3/envs/expenv
