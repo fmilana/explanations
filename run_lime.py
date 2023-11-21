@@ -13,20 +13,25 @@ from sklearn.pipeline import make_pipeline
 from eli5 import format_as_text, format_as_html
 from eli5.lime import TextExplainer
 # from lime.lime_text import LimeTextExplainer
-from xgboost import XGBClassifier
+
+
+txt_path = Path("results/lime.txt")
+html_path = Path("results/lime.html")
 
 
 def explain_pred(text_explainer, pipeline, categories, sentence):
     text_explainer.fit(sentence, pipeline.predict_proba)
     prediction = text_explainer.explain_prediction(target_names=categories)
     txt = format_as_text(prediction)
-    txt_file = open("results/lime.txt", "a+")
+    txt_file = open(txt_path, "a+")
     txt_file.write(txt)
     txt_file.close()
+    print(f"saved to {txt_path}")
     html = format_as_html(prediction)
-    html_file = open("results/lime.html", "a+")
+    html_file = open(html_path, "a+")
     html_file.write(html)
     html_file.close()
+    print(f"saved to {html_path}")
     print(text_explainer.metrics_)
 
 
@@ -35,14 +40,8 @@ train_df = pd.read_csv("data/train.csv")
 X_train = train_df["original_sentence"].tolist()
 Y_train = np.array(train_df.iloc[:, 2:])
 
-clf = XGBClassifier()
-number_of_chains = 10
-chains = [ClassifierChain(clf, order="random", random_state=i) for i in range(number_of_chains)]
-
-model = MultiLabelProbClassifier(chains)
-
 print("calling make_pipeline")
-pipeline = make_pipeline(Sentence2Vec(), model)
+pipeline = make_pipeline(Sentence2Vec(), MultiLabelProbClassifier())
 print("done calling make_pipeline")
 print("calling pipeline.fit")
 pipeline.fit(X_train, Y_train)
@@ -78,14 +77,13 @@ sentence = "There's an awful lot going on here."
 
 print(f"pipeline.predict(sentences) = {pipeline.predict([sentence])}")
 
-
 # clear lime.txt and lime.html
-if Path("results/lime.txt"):
-    open('results/lime.txt', 'w').close()
-    print("cleared lime.txt")
-if Path("results/lime.html"):
-    open('results/lime.html', 'w').close()
-    print("cleared lime.html")
+if Path(txt_path):
+    open(txt_path, "w").close()
+    print(f"cleared {txt_path}")
+if Path(html_path):
+    open(html_path, "w").close()
+    print(f"cleared {html_path}")
 
 n_samples_list = [
     300,

@@ -1,14 +1,20 @@
 import numpy as np
 import pandas as pd
 from sklearn.base import BaseEstimator, ClassifierMixin
+from sklearn.multioutput import ClassifierChain
+from xgboost import XGBClassifier
 from augment import MLSMOTE, get_minority_samples
 
 
 # from https://github.com/TeamHG-Memex/eli5/issues/337
 class MultiLabelProbClassifier(BaseEstimator, ClassifierMixin):
 
-    def __init__(self, chains):
-        self.chains = chains # XGBoost chains
+    chains = []
+
+    def __init__(self):
+        clf = XGBClassifier()
+        number_of_chains = 10
+        self.chains = [ClassifierChain(clf, order="random", random_state=i) for i in range(number_of_chains)]
 
     def fit(self, X, Y): # fit the XGBoost chains
         X, Y = self.oversample(X, Y) # oversample minority classes
@@ -17,9 +23,9 @@ class MultiLabelProbClassifier(BaseEstimator, ClassifierMixin):
             print(f"{i+1}/{len(self.chains)} chains fit")
 
     def predict(self, X): # get predictions from the XGBoost chains
-        for i, chain in enumerate(self.chains):
-            print(f"chain {i+1} predict = {chain.predict(X)}")
-        print(f"np.array([chain.predict(X) for chain in self.chains]).mean(axis=0): {np.array([chain.predict(X) for chain in self.chains]).mean(axis=0)}")
+        # for i, chain in enumerate(self.chains):
+        #     print(f"chain {i+1} predict = {chain.predict(X)}")
+        # print(f"np.array([chain.predict(X) for chain in self.chains]).mean(axis=0): {np.array([chain.predict(X) for chain in self.chains]).mean(axis=0)}")
         return np.rint(np.array([chain.predict(X) for chain in self.chains]).mean(axis=0)).astype(int) # predict with the XGBoost chains
     
     def predict_proba(self, X): # get prediction probas from the XGBoost chains

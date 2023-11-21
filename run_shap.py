@@ -1,49 +1,24 @@
-import re
+from pathlib import Path
 import shap
 import numpy as np
 import pandas as pd
 from classifier import MultiLabelProbClassifier
 from vectorizer import Sentence2Vec
-from xgboost import XGBClassifier
-from sklearn.multioutput import ClassifierChain
 from sklearn.pipeline import make_pipeline
 
 
-def custom_tokenizer(s, return_offsets_mapping=True):
-        """Custom tokenizers conform to a subset of the transformers API."""
-        pos = 0
-        offset_ranges = []
-        input_ids = []
-        for m in re.finditer(r"\W", s):
-            start, end = m.span(0)
-            offset_ranges.append((pos, start))
-            input_ids.append(s[pos:start])
-            pos = end
-        if pos != len(s):
-            offset_ranges.append((pos, len(s)))
-            input_ids.append(s[pos:])
-        out = {}
-        out["input_ids"] = input_ids
-        if return_offsets_mapping:
-            out["offset_mapping"] = offset_ranges
-        return out
+html_path = Path("results/shap.html")
 
 train_df = pd.read_csv("data/train.csv")
 
 X_train = train_df["original_sentence"].tolist()
 Y_train = np.array(train_df.iloc[:, 2:])
 
-clf = XGBClassifier()
-number_of_chains = 10
-chains = [ClassifierChain(clf, order="random", random_state=i) for i in range(number_of_chains)]
-
-model = MultiLabelProbClassifier(chains)
-
-pipeline = make_pipeline(Sentence2Vec(), model)
+pipeline = make_pipeline(Sentence2Vec(), MultiLabelProbClassifier())
 
 pipeline.fit(X_train, Y_train)
 
-explainer = shap.Explainer(pipeline.predict, custom_tokenizer)
+categories = ["food and drinks", "place", "people", "opinions"]
 
 sentence = "They will even make you a burger in which the bun has been substituted for two halves of an avocado.",
 # sentence = "Tendril started as a pop-up, first in a Soho pub, then later here, on this narrow site just south of Oxford Street.",
@@ -53,8 +28,24 @@ sentence = "They will even make you a burger in which the bun has been substitut
 #     Middle Eastern-inflected Berber & Q, and at the cheerfully iconoclastic Manteca, which treats the Italian \
 #     classics as a mere opening position in a ribald negotiation."
 
+explainer = shap.Explainer(pipeline.predict,
+                           masker=shap.maskers.Text(tokenizer=r"\W+"),
+                           output_names=categories)
+
 print(f"pipeline.predict(sentences) = {pipeline.predict([sentence])}")
 
-shap_values = explainer([sentence])
+shap_values = explainer(sentence)
 
-shap.plots.text(shap_values)
+print(f"SHAP Values Shape : {shap_values.shape}")
+print(f"SHAP Base Values  : {shap_values.base_values}")
+print(f"SHAP Data : {shap_values.data[0]}")
+# print(shap_values.data[1])
+
+if Path(html_path):
+    open(html_path, "w").close()
+    print(f"cleared {html_path}")
+
+file = open(html_path, "a+")
+file.write(shap.plots.text(shap_values, display=False))
+file.close()
+print(f"saved to {html_path}")
