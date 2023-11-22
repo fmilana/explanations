@@ -2,7 +2,7 @@
 
 ![Screenshot of the heatmaps](readme_lime_heatmaps.png)
 
-Generating LIME heatmaps on TACA's classifier and restaurant reviews dataset.
+Generating explanations for TACA's classifier trained on the restaurant reviews dataset.
 
 ## How to generate heatmaps
 
