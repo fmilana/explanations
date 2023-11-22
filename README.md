@@ -1,6 +1,6 @@
 # explanations
 
-![Screenshot of the heatmaps](lime_heatmaps.png)
+![Screenshot of the heatmaps](readme_lime_heatmaps.png)
 
 Generating LIME heatmaps on TACA's classifier and restaurant reviews dataset.
 

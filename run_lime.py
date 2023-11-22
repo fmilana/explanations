@@ -51,7 +51,7 @@ print("done calling pipeline.fit")
 categories = ["food and drinks", "place", "people", "opinions"]
 
 # FOOD AND DRINKS
-# sentence = "They will even make you a burger in which the bun has been substituted for two halves of an avocado."
+sentence = "They will even make you a burger in which the bun has been substituted for two halves of an avocado."
 # sentence = "But the word-spaghetti of the menu descriptions – 'aubergine, kalamatas, tahini' reads one; \
 # 'grilled beetroot, spring onion, smoked soy' reads another – is so alluring, so well lubricated with promise, that I give myself to it happily."
 
@@ -70,7 +70,7 @@ categories = ["food and drinks", "place", "people", "opinions"]
 # classics as a mere opening position in a ribald negotiation."
 
 # OPINIONS
-sentence = "There's an awful lot going on here."
+# sentence = "There's an awful lot going on here."
 # sentence = "It's restless but focused and jolly."
 # sentence = "Just go elsewhere afterwards for an ice-cream."
 # sentence = "Importantly though, it is good value."
