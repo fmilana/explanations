@@ -1,16 +1,16 @@
-from pathlib import Path
-from matplotlib import pyplot as plt
 import shap
 import numpy as np
 import pandas as pd
+from pathlib import Path
+from matplotlib import pyplot as plt
 from classifier import MultiLabelProbClassifier
 from vectorizer import Sentence2Vec
 from sklearn.pipeline import make_pipeline
 
 # https://coderzcolumn.com/tutorials/artificial-intelligence/explain-text-classification-models-using-shap-values-keras
 
-html_path = Path("results/shap.html")
-png_path = Path("results/shap.png")
+html_path = Path("results/shap/shap.html")
+png_path = Path("results/shap/shap.png")
 
 train_df = pd.read_csv("data/train.csv")
 

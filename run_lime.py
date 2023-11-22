@@ -15,8 +15,8 @@ from eli5.lime import TextExplainer
 # from lime.lime_text import LimeTextExplainer
 
 
-txt_path = Path("results/lime.txt")
-html_path = Path("results/lime.html")
+txt_path = Path("results/lime/lime.txt")
+html_path = Path("results/lime/lime.html")
 
 
 def explain_pred(text_explainer, pipeline, categories, sentence):
