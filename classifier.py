@@ -33,6 +33,7 @@ class MultiLabelProbClassifier(BaseEstimator, ClassifierMixin):
             self.probas_ = np.array([chain.predict_proba(X) for chain in self.chains]).mean(axis=0)[0]
             sums_to = sum(self.probas_)
             new_probs = [x / sums_to for x in self.probas_]
+            new_probs = np.asarray(new_probs).reshape(-1, 1) # reshape to two-dimensional array (for run_counter.py)
             return new_probs
         else:
             self.probas_ = np.array([chain.predict_proba(X) for chain in self.chains]).mean(axis=0)
@@ -43,7 +44,8 @@ class MultiLabelProbClassifier(BaseEstimator, ClassifierMixin):
                 # print(sums_to)
                 new_probs = [x / sums_to for x in list_of_probs]
                 ret_list.append(np.asarray(new_probs))
-            return np.asarray(ret_list)
+            ret_list = np.asarray(ret_list)
+            return ret_list
     
     def oversample(self, X, Y):
         X_shape_old = X.shape

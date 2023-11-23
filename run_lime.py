@@ -23,14 +23,12 @@ def explain_pred(text_explainer, pipeline, categories, sentence):
     text_explainer.fit(sentence, pipeline.predict_proba)
     prediction = text_explainer.explain_prediction(target_names=categories)
     txt = format_as_text(prediction)
-    txt_file = open(txt_path, "a+")
-    txt_file.write(txt)
-    txt_file.close()
+    with open(txt_path, "a+") as txt_file:
+        txt_file.write(txt)
     print(f"saved to {txt_path}")
     html = format_as_html(prediction)
-    html_file = open(html_path, "a+")
-    html_file.write(html)
-    html_file.close()
+    with open(html_path, "a+") as html_file:
+        html_file.write(html)
     print(f"saved to {html_path}")
     print(text_explainer.metrics_)
 

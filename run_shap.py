@@ -47,9 +47,8 @@ if Path(html_path):
     open(html_path, "w").close()
     print(f"cleared {html_path}")
 
-file = open(html_path, "a+")
-file.write(shap.plots.text(shap_values, display=False))
-file.close()
+with open(html_path, "a+") as html_file:
+    html_file.write(shap.plots.text(shap_values, display=False))
 print(f"saved to {html_path}")
 
 fig, axs = plt.subplots(1, len(categories), layout="constrained")

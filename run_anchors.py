@@ -66,6 +66,5 @@ with open(txt_path, "w") as f:
     f.write("\n- ".join([x for x in explanation.raw["examples"][-1]["covered_true"]]))
     f.write(f"\n\nExamples where anchor applies and model does NOT predict \"{predicted_category}\":\n- ")
     f.write("\n- ".join([x for x in explanation.raw["examples"][-1]["covered_false"]]))
-f.close()
 
 print(f"saved to {txt_path}")
