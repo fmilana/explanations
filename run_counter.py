@@ -73,12 +73,13 @@ if Path(txt_path):
     open(txt_path, "w").close()
     print(f"cleared {txt_path}")
 
-with open(txt_path, "w") as f:
+with open(txt_path, "r+") as f:
     for key, df in explanations_dict.items():
         f.write(f"{key}:\n")
         for index, row in df.iterrows():
             category = categories[int(row["label"])]
             text = row["text"]
             f.write(f"- ({category}) {text}\n")
-        print("\n\n")
+        f.write("\n")
+    f.writelines(f.readlines()[:-2]) # remove last two newlines (to-do: fix)
 print(f"saved to {txt_path}")
