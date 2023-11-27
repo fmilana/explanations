@@ -57,9 +57,16 @@ prediction = pipeline.predict([sentence]).flatten()
 print(f"predict_proba: {predict_proba}")
 print(f"prediction: {prediction}")
 
-explainer = Polyjuice(predict_function=pipeline.predict_proba)
+explainer = Polyjuice(
+    predict_function=pipeline.predict_proba,
+    mode="classification"
+    )
 
-explanations = explainer.explain(Text([sentence])) # omnixai.explanations.tabular.counterfactual.CFExplanation
+# omnixai.explanations.tabular.counterfactual.CFExplanation
+explanations = explainer.explain(
+    Text([sentence]),
+    max_number_examples=15
+    )
 # print(type(explanations))
 # print(dir(explanations))
 # fig = plt.figure() 

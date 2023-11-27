@@ -44,11 +44,15 @@ print('loading spaCy model...')
 model = "en_core_web_md"
 spacy_model(model=model)
 
+# https://docs.seldon.io/projects/alibi/en/latest/examples/anchor_text_movie.html
 explainer = AnchorText(
     predictor=pipeline.predict,
     sampling_strategy="similarity",
     nlp=spacy.load(model),
-    sample_proba=0.5
+    use_proba=True, # sample according to the similiary distribution
+    sample_proba=0.5, # probability of a word to be masked and replaced by a similar word
+    top_n=20, # consider only top 20 words most similar words
+    temperature=0.2 # higher temperature implies more randomness when sampling
 )
 
 explanation = explainer.explain(sentence, threshold=0.95)
