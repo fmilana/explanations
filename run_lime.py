@@ -73,7 +73,15 @@ sentence = "They will even make you a burger in which the bun has been substitut
 # sentence = "Just go elsewhere afterwards for an ice-cream."
 # sentence = "Importantly though, it is good value."
 
-print(f"pipeline.predict(sentences) = {pipeline.predict([sentence])}")
+prediction = pipeline.predict([sentence]).flatten()
+try:
+    predicted_category = categories[np.where(prediction==1)[0][0]]
+except IndexError:
+    predicted_category = "None"
+predict_proba = pipeline.predict_proba([sentence]).flatten()
+
+print(f"predicted_category: \"{predicted_category}\"")
+print(f"predict_proba: {predict_proba}")
 
 # clear lime.txt and lime.html
 if Path(txt_path):

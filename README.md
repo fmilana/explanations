@@ -2,7 +2,7 @@
 
 ![Screenshot of the heatmaps](readme_lime_heatmaps.png)
 
-Generating explanations for TACA's classifier trained on the restaurant reviews dataset.
+Generating explanations for TACA's XGBoost ClassifierChains trained on the restaurant reviews dataset.
 
 ## Setup
 
@@ -14,13 +14,12 @@ Install libraries in a new conda environment.
 conda env create -f expenv_mac.yml
 ```
 
-To fix OmniXAI installation:
+Fix OmniXAI installation:
 ```
 brew install pkg-config
 brew install mysql
 export LDFLAGS="-L/usr/local/opt/openssl/lib"
 export CPPFLAGS="-I/usr/local/opt/openssl/include"
-python -m spacy download en_core_web_sm
 ```
 Then follow [this guide](https://github.com/tongshuangwu/polyjuice/issues/12#issuecomment-1665358584).
 
@@ -34,6 +33,12 @@ conda env create -f expenv_win.yml
 
 ```
 conda activate expenv
+```
+
+### Download spaCy models:
+```
+python -m spacy download en_core_web_sm
+python -m spacy download en_core_web_md
 ```
 
 ## Generate explanations

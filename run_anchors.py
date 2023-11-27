@@ -34,11 +34,16 @@ sentence = "They will even make you a burger in which the bun has been substitut
 
 # sentence = remove_stop_words(sentence)
 
-prediction = pipeline.predict([sentence]).flatten()
-predicted_category = categories[np.where(prediction==1)[0][0]]
-
+# prediction = pipeline.predict([sentence]).flatten()
+prediction = pipeline.predict([sentence])
+try:
+    predicted_category = categories[np.where(prediction==1)[0][0]]
+except IndexError:
+    predicted_category = "None"
+predict_proba = pipeline.predict_proba([sentence]).flatten()
 
 print(f"predicted_category: \"{predicted_category}\"")
+print(f"predict_proba: {predict_proba}")
 
 print('loading spaCy model...')
 model = "en_core_web_md"

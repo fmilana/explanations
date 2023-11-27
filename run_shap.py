@@ -35,7 +35,15 @@ explainer = shap.Explainer(pipeline.predict,
                            masker=shap.maskers.Text(tokenizer=r"\W+"),
                            output_names=categories)
 
-print(f"pipeline.predict(sentences) = {pipeline.predict([sentence])}")
+prediction = pipeline.predict([sentence]).flatten()
+try:
+    predicted_category = categories[np.where(prediction==1)[0][0]]
+except IndexError:
+    predicted_category = "None"
+predict_proba = pipeline.predict_proba([sentence]).flatten()
+
+print(f"predicted_category: \"{predicted_category}\"")
+print(f"predict_proba: {predict_proba}")
 
 shap_values = explainer([sentence])
 
