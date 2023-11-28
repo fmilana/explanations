@@ -9,12 +9,12 @@ from augment import MLSMOTE, get_minority_samples
 # from https://github.com/TeamHG-Memex/eli5/issues/337
 class MultiLabelProbClassifier(BaseEstimator, ClassifierMixin):
 
+    number_of_chains = 10
     chains = []
 
     def __init__(self):
         clf = XGBClassifier()
-        number_of_chains = 10
-        self.chains = [ClassifierChain(clf, order="random", random_state=i) for i in range(number_of_chains)]
+        self.chains = [ClassifierChain(clf, order="random", random_state=i) for i in range(self.number_of_chains)]
 
     def fit(self, X, Y): # fit the XGBoost chains
         X, Y = self.oversample(X, Y) # oversample minority classes
