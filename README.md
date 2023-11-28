@@ -11,23 +11,24 @@ Install libraries in a new conda environment.
 ### On Mac:
 
 ```
-conda env create -f expenv_mac.yml
+conda env create -f envs/expenv_mac.yml
 ```
 
-Fix OmniXAI installation:
+Install required homebrew packages:
 ```
 brew install pkg-config
 brew install mysql
 export LDFLAGS="-L/usr/local/opt/openssl/lib"
 export CPPFLAGS="-I/usr/local/opt/openssl/include"
 ```
-Then follow [this guide](https://github.com/tongshuangwu/polyjuice/issues/12#issuecomment-1665358584).
 
 ### On Windows:
 
 ```
-conda env create -f expenv_win.yml
+conda env create -f envs/expenv_win.yml
 ```
+### Fix OmniXAI installation:
+Follow [this guide](https://github.com/tongshuangwu/polyjuice/issues/12#issuecomment-1665358584) (envs/expenv/Lib/site-packages/polyjuice/generations/generator_helpers.py).
 
 ### Activate conda environment:
 
@@ -43,7 +44,7 @@ python -m spacy download en_core_web_md
 
 ## Generate explanations
 
-To generate explanations (output stored in the results folder):
+(Output stored in the results folder)
 ```
 python run_[explanation_name].py
 ```
