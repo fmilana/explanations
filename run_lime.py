@@ -49,7 +49,7 @@ print("done calling pipeline.fit")
 categories = ["food and drinks", "place", "people", "opinions"]
 
 # FOOD AND DRINKS
-sentence = "They will even make you a burger in which the bun has been substituted for two halves of an avocado."
+# sentence = "They will even make you a burger in which the bun has been substituted for two halves of an avocado."
 # sentence = "But the word-spaghetti of the menu descriptions – 'aubergine, kalamatas, tahini' reads one; \
 # 'grilled beetroot, spring onion, smoked soy' reads another – is so alluring, so well lubricated with promise, that I give myself to it happily."
 
@@ -72,6 +72,12 @@ sentence = "They will even make you a burger in which the bun has been substitut
 # sentence = "It's restless but focused and jolly."
 # sentence = "Just go elsewhere afterwards for an ice-cream."
 # sentence = "Importantly though, it is good value."
+
+# food and drinks false positives
+sentence = "Drink orders are forgotten, then have to be re-explained."
+
+# food and drinks false negatives
+sentence = "It's a tough, extremely indifferent piece of meat."
 
 prediction = pipeline.predict([sentence]).flatten()
 try:
