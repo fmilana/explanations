@@ -9,32 +9,28 @@ from classifier import MultiLabelProbClassifier
 from vectorizer import Sentence2Vec
 
 
-html_path = Path("results/html/results.html")
-
-
-def generate_lime_tuples(pipeline, categories, sentence):
+def generate_lime_values(pipeline, categories, sentence):
     lime_dict = generate_lime(pipeline, categories, sentence)
 
     target = lime_dict["targets"][categories.index(predicted_category)]
     positive_weight_tuples = [(entry["feature"], entry["weight"]) for entry in target["feature_weights"]["pos"]]
     negative_weight_tuples = [(entry["feature"], entry["weight"]) for entry in target["feature_weights"]["neg"]]
 
-    lime_weight_tuples = positive_weight_tuples + negative_weight_tuples
-    lime_weight_tuples = sorted(lime_weight_tuples, key=lambda x: int(re.search(r'\[(\d+)\]', x[0]).group(1)) if re.search(r'\[(\d+)\]', x[0]) is not None else -1)
-    lime_weight_tuples = [(re.sub(r'^\[\d+\] ', '', x[0]), x[1]) for x in lime_weight_tuples]
+    lime_tuples = positive_weight_tuples + negative_weight_tuples
+    lime_tuples = sorted(lime_tuples, key=lambda x: int(re.search(r'\[(\d+)\]', x[0]).group(1)) if re.search(r'\[(\d+)\]', x[0]) is not None else -1)
 
-    return lime_weight_tuples
+    lime_values = [tuple[1] for tuple in lime_tuples]
+
+    lime_bias = lime_values.pop(0)
+
+    return lime_bias, lime_values
 
 
-def generate_shap_tuples(pipeline, categories, sentence):
+def generate_shap_values(pipeline, categories, sentence):
     shap_array = generate_shap(pipeline, categories, sentence)
     shap_values = shap_array[:, categories.index(predicted_category)].tolist()
 
-    words = re.sub(r'\W', ' ', sentence).split()
-
-    shap_tuples = [(word, value) for word, value in zip(words, shap_values)]
-
-    return shap_tuples
+    return shap_values
 
 
 train_df = pd.read_csv("data/train.csv")
@@ -63,8 +59,9 @@ predict_proba = pipeline.predict_proba([sentence]).flatten()
 print(f"predicted_category: \"{predicted_category}\"")
 print(f"predict_proba: {predict_proba}")
 
-lime_weight_tuples = generate_lime_tuples(pipeline, categories, sentence)
-shap_weight_tuples = generate_shap_tuples(pipeline, categories, sentence)
+lime_bias, lime_values = generate_lime_values(pipeline, categories, sentence)
+shap_values = generate_shap_values(pipeline, categories, sentence)
 
-print(f"lime_weight_tuples: {lime_weight_tuples}")
-print(f"shap_weight_tuples: {shap_weight_tuples}")
+print(f"lime_bias: {lime_bias}")
+print(f"lime_values: {lime_values}")
+print(f"shap_values: {shap_values}")
