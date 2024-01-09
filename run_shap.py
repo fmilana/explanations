@@ -4,6 +4,7 @@ import pandas as pd
 from pathlib import Path
 from matplotlib import pyplot as plt
 from classifier import MultiLabelProbClassifier
+from preprocess import remove_stop_words
 from vectorizer import Sentence2Vec
 from sklearn.pipeline import make_pipeline
 
@@ -77,6 +78,8 @@ if __name__ == "__main__":
     # sentence = "That's exactly what you would expect of a chef like Shaun Moffat, who has cooked in London at the \
     #     Middle Eastern-inflected Berber & Q, and at the cheerfully iconoclastic Manteca, which treats the Italian \
     #     classics as a mere opening position in a ribald negotiation."
+
+    sentence = remove_stop_words(sentence)
 
     prediction = pipeline.predict([sentence]).flatten()
     try:

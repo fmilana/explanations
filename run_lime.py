@@ -156,6 +156,7 @@ if __name__ == "__main__":
     # FN
     # sentence = "Modern food preparation technology is to be celebrated: it's cleaner, more energy efficient and just simpler to use than the old ways."
     sentence = "This is not cooking that redefines the very notion of Greek food."
+    sentence = remove_stop_words(sentence)
 
     prediction = pipeline.predict([sentence]).flatten()
     try:

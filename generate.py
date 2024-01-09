@@ -2,6 +2,7 @@ import re
 import numpy as np
 import pandas as pd
 from draw import create_html
+from preprocess import remove_stop_words
 from run_lime import generate_lime
 from run_shap import generate_shap
 from pathlib import Path
@@ -49,22 +50,28 @@ print("done calling pipeline.fit")
 categories = ["food and drinks", "place", "people", "opinions"]
 
 sentence = "This is not cooking that redefines the very notion of Greek food."
+cleaned_sentence = remove_stop_words(sentence)
 
-prediction = pipeline.predict([sentence]).flatten()
+prediction = pipeline.predict([cleaned_sentence]).flatten()
 try:
     predicted_category = categories[np.where(prediction==1)[0][0]]
 except IndexError:
     predicted_category = "None"
-predict_proba = pipeline.predict_proba([sentence]).flatten()
+predict_proba = pipeline.predict_proba([cleaned_sentence]).flatten()
+
+predicted_category_proba = predict_proba[categories.index(predicted_category)]
 
 print(f"predicted_category: \"{predicted_category}\"")
 print(f"predict_proba: {predict_proba}")
 
-lime_bias, lime_values = generate_lime_values(pipeline, categories, sentence)
-shap_values = generate_shap_values(pipeline, categories, sentence)
+lime_bias, lime_values = generate_lime_values(pipeline, categories, cleaned_sentence)
+shap_values = generate_shap_values(pipeline, categories, cleaned_sentence)
 
-print(f"lime_bias: {lime_bias}")
-print(f"lime_values: {lime_values}")
-print(f"shap_values: {shap_values}")
-
-create_html(sentence, lime_bias, lime_values, shap_values)
+create_html(
+    sentence, 
+    predicted_category, 
+    predicted_category_proba, 
+    lime_bias, 
+    lime_values, 
+    shap_values
+    )

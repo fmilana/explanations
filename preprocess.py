@@ -17,7 +17,7 @@ def get_stop_words():
 
 
 def remove_stop_words(text):
-    get_stop_words()
+    stop_words = get_stop_words()
 
     word_tokens = [word for word in word_tokenize(text) if word.lower() not in stop_words]
     text = ' '.join(word_tokens)
