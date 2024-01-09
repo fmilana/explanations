@@ -1,6 +1,7 @@
 import re
 import numpy as np
 import pandas as pd
+from draw import create_html
 from run_lime import generate_lime
 from run_shap import generate_shap
 from pathlib import Path
@@ -65,3 +66,5 @@ shap_values = generate_shap_values(pipeline, categories, sentence)
 print(f"lime_bias: {lime_bias}")
 print(f"lime_values: {lime_values}")
 print(f"shap_values: {shap_values}")
+
+create_html(sentence, lime_bias, lime_values, shap_values)
