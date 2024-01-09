@@ -11,7 +11,7 @@ from classifier import MultiLabelProbClassifier
 from vectorizer import Sentence2Vec
 
 
-def generate_lime_values(pipeline, categories, sentence):
+def generate_lime_weights(pipeline, categories, sentence):
     lime_dict = generate_lime(pipeline, categories, sentence)
 
     target = lime_dict["targets"][categories.index(predicted_category)]
@@ -21,18 +21,18 @@ def generate_lime_values(pipeline, categories, sentence):
     lime_tuples = positive_weight_tuples + negative_weight_tuples
     lime_tuples = sorted(lime_tuples, key=lambda x: int(re.search(r'\[(\d+)\]', x[0]).group(1)) if re.search(r'\[(\d+)\]', x[0]) is not None else -1)
 
-    lime_values = [tuple[1] for tuple in lime_tuples]
+    lime_weights = [tuple[1] for tuple in lime_tuples]
 
-    lime_bias = lime_values.pop(0)
+    lime_bias = lime_weights.pop(0)
 
-    return lime_bias, lime_values
+    return lime_bias, lime_weights
 
 
-def generate_shap_values(pipeline, categories, sentence):
+def generate_shap_weights(pipeline, categories, sentence):
     shap_array = generate_shap(pipeline, categories, sentence)
-    shap_values = shap_array[:, categories.index(predicted_category)].tolist()
+    shap_weights = shap_array[:, categories.index(predicted_category)].tolist()
 
-    return shap_values
+    return shap_weights
 
 
 train_df = pd.read_csv("data/train.csv")
@@ -50,6 +50,7 @@ print("done calling pipeline.fit")
 categories = ["food and drinks", "place", "people", "opinions"]
 
 sentence = "This is not cooking that redefines the very notion of Greek food."
+# sentence = "Head chef Graham Chatham, who has cooked at Rules and Daylesford Organic, treats them with old school care, attention and at times, maternal indulgence."
 cleaned_sentence = remove_stop_words(sentence)
 
 prediction = pipeline.predict([cleaned_sentence]).flatten()
@@ -64,14 +65,14 @@ predicted_category_proba = predict_proba[categories.index(predicted_category)]
 print(f"predicted_category: \"{predicted_category}\"")
 print(f"predict_proba: {predict_proba}")
 
-lime_bias, lime_values = generate_lime_values(pipeline, categories, cleaned_sentence)
-shap_values = generate_shap_values(pipeline, categories, cleaned_sentence)
+lime_bias, lime_weights = generate_lime_weights(pipeline, categories, cleaned_sentence)
+shap_weights = generate_shap_weights(pipeline, categories, cleaned_sentence)
 
 create_html(
     sentence, 
     predicted_category, 
     predicted_category_proba, 
     lime_bias, 
-    lime_values, 
-    shap_values
+    lime_weights, 
+    shap_weights
     )
