@@ -32,7 +32,7 @@ sentence = "They will even make you a burger in which the bun has been substitut
 #     Middle Eastern-inflected Berber & Q, and at the cheerfully iconoclastic Manteca, which treats the Italian \
 #     classics as a mere opening position in a ribald negotiation."
 
-# sentence = remove_stop_words(sentence)
+sentence = remove_stop_words(sentence)
 
 # prediction = pipeline.predict([sentence]).flatten()
 prediction = pipeline.predict([sentence])

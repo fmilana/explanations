@@ -5,7 +5,6 @@ from draw import create_html
 from preprocess import remove_stop_words
 from run_lime import generate_lime
 from run_shap import generate_shap
-from pathlib import Path
 from sklearn.pipeline import make_pipeline
 from classifier import MultiLabelProbClassifier
 from vectorizer import Sentence2Vec

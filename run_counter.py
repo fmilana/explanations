@@ -3,6 +3,8 @@ from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
 import plotly.io as pio
+
+from preprocess import remove_stop_words
 pio.renderers.default = "png"
 from omnixai.data.text import Text
 from omnixai.explainers.nlp.counterfactual.polyjuice import Polyjuice
@@ -50,6 +52,8 @@ sentence = "They will even make you a burger in which the bun has been substitut
 # sentence = "It's restless but focused and jolly."
 # sentence = "Just go elsewhere afterwards for an ice-cream."
 # sentence = "Importantly though, it is good value."
+
+sentence = remove_stop_words(sentence)
 
 predict_proba = pipeline.predict_proba([sentence]).flatten()
 prediction = pipeline.predict([sentence]).flatten()
