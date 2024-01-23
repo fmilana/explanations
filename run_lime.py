@@ -88,7 +88,7 @@ if __name__ == "__main__":
     train_df = pd.read_csv("data/train.csv")
 
     X_train = train_df["original_sentence"].tolist()
-    Y_train = np.array(train_df.iloc[:, 2:])
+    Y_train = np.array(train_df.iloc[:, 3:])
 
     print("calling make_pipeline")
     pipeline = make_pipeline(Sentence2Vec(), MultiLabelProbClassifier())

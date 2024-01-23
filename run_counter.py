@@ -21,7 +21,7 @@ txt_path = Path("results/counter/counter.txt")
 train_df = pd.read_csv("data/train.csv")
 
 X_train = train_df["original_sentence"].tolist()
-Y_train = np.array(train_df.iloc[:, 2:])
+Y_train = np.array(train_df.iloc[:, 3:])
 
 pipeline = make_pipeline(Sentence2Vec(), MultiLabelProbClassifier())
 
