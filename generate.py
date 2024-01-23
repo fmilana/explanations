@@ -37,7 +37,7 @@ def generate_shap_weights(pipeline, categories, sentence):
 train_df = pd.read_csv("data/train.csv")
 
 X_train = train_df["original_sentence"].tolist()
-Y_train = np.array(train_df.iloc[:, 3:])
+Y_train = np.array(train_df.iloc[:, 7:])
 
 print("calling make_pipeline")
 pipeline = make_pipeline(Sentence2Vec(), MultiLabelProbClassifier())

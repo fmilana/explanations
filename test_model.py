@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from sklearn.pipeline import make_pipeline
+from augment import oversample
 from classifier import MultiLabelProbClassifier
 from vectorizer import Sentence2Vec
 
@@ -8,7 +9,9 @@ from vectorizer import Sentence2Vec
 train_df = pd.read_csv("data/train.csv")
 
 X_train = train_df["original_sentence"].tolist()
-Y_train = np.array(train_df.iloc[:, 3:])
+Y_train = np.array(train_df.iloc[:, 7:])
+
+X_train, Y_train = oversample(X_train, Y_train)
 
 pipeline = make_pipeline(Sentence2Vec(), MultiLabelProbClassifier())
 

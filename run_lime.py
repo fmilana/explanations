@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from pathlib import Path
+from augment import oversample
 from classifier import MultiLabelProbClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.neural_network import MLPClassifier
@@ -88,7 +89,9 @@ if __name__ == "__main__":
     train_df = pd.read_csv("data/train.csv")
 
     X_train = train_df["original_sentence"].tolist()
-    Y_train = np.array(train_df.iloc[:, 3:])
+    Y_train = np.array(train_df.iloc[:, 7:])
+
+    X_train, Y_train = oversample(X_train, Y_train)
 
     print("calling make_pipeline")
     pipeline = make_pipeline(Sentence2Vec(), MultiLabelProbClassifier())

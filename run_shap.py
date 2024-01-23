@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 from matplotlib import pyplot as plt
+from augment import oversample
 from classifier import MultiLabelProbClassifier
 from preprocess import remove_stop_words
 from vectorizer import Sentence2Vec
@@ -63,7 +64,9 @@ if __name__ == "__main__":
     train_df = pd.read_csv("data/train.csv")
 
     X_train = train_df["original_sentence"].tolist()
-    Y_train = np.array(train_df.iloc[:, 3:])
+    Y_train = np.array(train_df.iloc[:, 7:])
+
+    X_train, Y_train = oversample(X_train, Y_train)
 
     pipeline = make_pipeline(Sentence2Vec(), MultiLabelProbClassifier())
 
