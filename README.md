@@ -52,5 +52,3 @@ python run_[explanation_name].py
 explanation_names:
 - lime
 - shap
-- anchors
-- counter
