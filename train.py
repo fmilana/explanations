@@ -2,7 +2,6 @@ import random
 import numpy as np
 import pandas as pd
 from sklearn.metrics import f1_score
-from sklearn.model_selection import GroupKFold
 from augment import oversample
 from classifier import MultiLabelProbClassifier
 
@@ -31,7 +30,7 @@ review_ids = [id for id in review_ids if id not in test_ids]
 # filter df to exclude test ids
 df = df[~df["review_id"].isin(test_ids)]
 # initialise group kfold
-gkf = GroupKFold(n_splits=len(review_ids))
+# gkf = GroupKFold(n_splits=len(review_ids))
 # initialise classifier
 clf = MultiLabelProbClassifier()
 
@@ -40,10 +39,10 @@ thresholds = np.arange(0.1, 1, 0.1)
 scores = []
 best_thresholds = []
 # iterate over splits
-for train_indices, validation_indices in gkf.split(df, groups=df['review_id']):
+for review_id in review_ids:
     # split data into training and validation sets
-    train_df = df.iloc[train_indices]
-    validation_df = df.iloc[validation_indices]
+    validation_df = df[df["review_id"] == review_id]
+    train_df = df[df["review_id"] != review_id]
     # prepare training data
     X_train = np.array(train_df["sentence_embedding"].tolist())
     Y_train = np.array(train_df.iloc[:, 7:])
