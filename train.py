@@ -8,7 +8,7 @@ from classifier import MultiLabelProbClassifier
 
 # load entire data
 df = pd.read_csv("data/train.csv")
-# process embedding strings
+# process sentence embedding strings
 df["sentence_embedding"] = df["sentence_embedding"].apply(
     lambda x: np.fromstring(
         x.replace("\n","")
@@ -42,12 +42,12 @@ best_thresholds = []
 for review_id in review_ids:
     # create validation set
     validation_df = df[df["review_id"] == review_id]
-    # create training set by removing validation set and test set
+    # create training set by removing test and validation sets
     train_df = df[~df["review_id"].isin(test_ids + [review_id])]
     # prepare training data
     X_train = np.array(train_df["sentence_embedding"].tolist())
     Y_train = np.array(train_df.iloc[:, 7:])
-    # oversample minority classes if present
+    # oversample minority classes (if present)
     X_train, Y_train = oversample(X_train, Y_train)
     # prepare validation data
     X_validation = np.array(validation_df["sentence_embedding"].tolist())
@@ -73,33 +73,27 @@ for review_id in review_ids:
     best_thresholds.append(best_threshold)
     scores.append(best_score)
 
-
 print(f"Best Thresholds: {best_thresholds}")
 print(f"Average Best Threshold: {np.mean(best_thresholds)}")
 print(f"Best F1 Scores: {scores}")
 print(f"Average Best F1 score: {np.mean(scores)}")
 
+# Train the classifier on the full training set
+X_train_full = np.array(df["sentence_embedding"].tolist())
+Y_train_full = np.array(df.iloc[:, 7:])
+clf.fit(X_train_full, Y_train_full)
+# Prepare test data
+X_test = np.array(test_df["sentence_embedding"].tolist())
+Y_test = np.array(test_df.iloc[:, 7:])
+# Predict probabilities on the test set
+Y_test_prob = clf.predict_proba(X_test)
+# Apply the average best threshold from cross-validation
+average_best_threshold = np.mean(best_thresholds)
+Y_test_pred = (Y_test_prob >= average_best_threshold).astype(int)
+# Evaluate performance
+test_score = f1_score(Y_test, Y_test_pred, average="weighted")
 
-# # Train the classifier on the full training set
-# X_train_full = np.array(df["sentence_embedding"].tolist())
-# Y_train_full = np.array(df.iloc[:, 7:])
-# clf.fit(X_train_full, Y_train_full)
-
-# # Prepare test data
-# X_test = np.array(test_df["sentence_embedding"].tolist())
-# Y_test = np.array(test_df.iloc[:, 7:])
-
-# # Predict probabilities on the test set
-# Y_test_prob = clf.predict_proba(X_test)
-
-# # Apply the average best threshold from cross-validation
-# average_best_threshold = np.mean(best_thresholds)
-# Y_test_pred = (Y_test_prob >= average_best_threshold).astype(int)
-
-# # Evaluate performance
-# test_score = f1_score(Y_test, Y_test_pred, average="weighted")
-
-# print(f"Test F1 Score using average best threshold ({average_best_threshold}): {test_score}")
+print(f"Test F1 Score using average best threshold ({average_best_threshold}): {test_score}")
 
 
 
