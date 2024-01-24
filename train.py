@@ -40,9 +40,10 @@ scores = []
 best_thresholds = []
 # iterate over splits
 for review_id in review_ids:
-    # split data into training and validation sets
+    # create validation set
     validation_df = df[df["review_id"] == review_id]
-    train_df = df[df["review_id"] != review_id]
+    # create training set by removing validation set and test set
+    train_df = df[~df["review_id"].isin(test_ids + [review_id])]
     # prepare training data
     X_train = np.array(train_df["sentence_embedding"].tolist())
     Y_train = np.array(train_df.iloc[:, 7:])
