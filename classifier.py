@@ -1,33 +1,31 @@
 import numpy as np
-import pandas as pd
 from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.multioutput import ClassifierChain
 from xgboost import XGBClassifier
-from augment import MLSMOTE, get_minority_samples
 
 
 # from https://github.com/TeamHG-Memex/eli5/issues/337
 class MultiLabelProbClassifier(BaseEstimator, ClassifierMixin):
-
     number_of_chains = 10
     chains = []
 
     def __init__(self):
-        clf = XGBClassifier()
-        self.chains = [ClassifierChain(clf, order="random", random_state=i) for i in range(self.number_of_chains)]
+        xgb = XGBClassifier()
+        self.chains = [ClassifierChain(xgb, order="random", random_state=i) for i in range(self.number_of_chains)]
 
-    def fit(self, X, Y): # fit the XGBoost chains
+    # fit the XGBoost chains
+    def fit(self, X, Y): 
         for i, chain in enumerate(self.chains): # fit each XGBoost chain
             chain.fit(X, Y)
             print(f"{i+1}/{len(self.chains)} chains fit")
 
-    def predict(self, X): # get predictions from the XGBoost chains
-        # for i, chain in enumerate(self.chains):
-        #     print(f"chain {i+1} predict = {chain.predict(X)}")
-        # print(f"np.array([chain.predict(X) for chain in self.chains]).mean(axis=0): {np.array([chain.predict(X) for chain in self.chains]).mean(axis=0)}")
-        return np.rint(np.array([chain.predict(X) for chain in self.chains]).mean(axis=0)).astype(int) # predict with the XGBoost chains
+    # get predictions from the XGBoost chains
+    def predict(self, X):
+        predictions = np.rint(np.array([chain.predict(X) for chain in self.chains]).mean(axis=0)).astype(int) # predict with the XGBoost chains
+        return predictions
     
-    def predict_proba(self, X): # get prediction probas from the XGBoost chains
+    # get prediction probas from the XGBoost chains
+    def predict_proba(self, X): 
         if len(X) == 1:
             self.probas_ = np.array([chain.predict_proba(X) for chain in self.chains]).mean(axis=0)[0]
             sums_to = sum(self.probas_)
