@@ -42,6 +42,13 @@ def generate_cm_csv(test_df, class_names, Y_pred, Y_true):
         class_df.to_csv(f"results/cm/{class_name}_cm.csv", index=False)
 
 
+def generate_probas_csv(test_df, class_names, average_best_thresholds_per_class, Y_test_prob):
+    proba_df = pd.DataFrame(Y_test_prob, columns=[f"proba {class_names} ({average_best_thresholds_per_class[i]})" for i, class_names in enumerate(class_names)])
+    test_df = test_df.reset_index(drop=True)
+    test_df = pd.concat([test_df, proba_df], axis=1)
+    test_df.to_csv("results/probas.csv", index=False)
+
+
 # load entire data
 df = pd.read_csv("data/train.csv")
 # get list of class names
@@ -120,11 +127,11 @@ for iteration_index, review_id in enumerate(review_ids):
 average_best_thresholds_per_class = np.mean(best_thresholds_per_class, axis=0)
 average_scores_per_class = np.mean(best_scores_per_class, axis=0)
 
-print(f"====================================VALIDATION RESULTS====================================")
+print(f"===============VALIDATION RESULTS===============")
 print(f"average best thresholds per class: {average_best_thresholds_per_class}")
 print(f"average scores per class: {average_scores_per_class}")
 print(f"average score across all classes: {np.mean(average_scores_per_class)}")
-print(f"==========================================================================================")
+print(f"================================================")
 
 # train the classifier on the full training set
 X_train_full = np.array(df["sentence_embedding"].tolist())
@@ -161,12 +168,14 @@ base_test_score = f1_score(Y_test, Y_base_test_pred, average="weighted")
 # calculate overall test score using average best thresholds
 test_score = f1_score(Y_test, Y_test_pred, average="weighted")
 
-print(f"====================================TEST RESULTS====================================")
+print(f"===============TEST RESULTS===============")
 print(f"test F1 Scores per class using 0.5 threshold: {base_test_scores_per_class}")
 print(f"test F1 Scores per class using average best thresholds: {test_scores_per_class}")
 print(f"base test F1 Score using 0.5 threshold: {base_test_score}")
 print(f"test F1 Score using average best thresholds ({average_best_thresholds_per_class}): {test_score}")
-print(f"====================================================================================")
+print(f"==========================================")
 
-# # write confusion matrices to csv's
+# write confusion matrices to csv's
 generate_cm_csv(test_df, class_names, Y_test_pred, Y_test)
+# write test_df probas to csv
+generate_probas_csv(test_df, class_names, average_best_thresholds_per_class, Y_test_prob)
