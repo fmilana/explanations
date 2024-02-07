@@ -1,6 +1,5 @@
 import re
-from draw import add_to_html
-from preprocess import remove_stop_words
+from draw import add_title_to_html, add_to_html
 from run_lime import generate_lime
 from run_shap import generate_shap
 from sklearn.pipeline import make_pipeline
@@ -32,6 +31,9 @@ def generate_shap_weights(pipeline, class_names, sentence, class_name):
 
 
 def generate_html(clf, sentence_dict):
+    # clear html
+    open("results/html/results.html", "w").close()
+
     pipeline = make_pipeline(Sentence2Vec(), clf)
     
     class_names = list(sentence_dict.keys())
@@ -48,19 +50,23 @@ def generate_html(clf, sentence_dict):
         titles = ['True Positives', 'False Positives', 'False Negatives']
 
         for i, list_of_tuples in enumerate([tp_examples_tuples, fp_examples_tuples, fn_examples_tuples]):
+            add_title_to_html(f'{class_name} {titles[i]}')
+
             for (sentence, cleaned_sentence, proba) in list_of_tuples:
                 lime_bias, lime_weights = generate_lime_weights(pipeline, class_names, cleaned_sentence, class_name)
                 shap_weights = generate_shap_weights(pipeline, class_names, cleaned_sentence, class_name)
 
-                add_to_html(f'{class_name} {titles[i]}', sentence, proba, lime_bias, lime_weights, shap_weights)
+                add_to_html(sentence, proba, lime_bias, lime_weights, shap_weights)
                 
         titles = ['Top Positive', 'Q1 Positive', 'Q3 Negative', 'Bottom Negative']        
 
-        for i, (sentence, cleaned_sentence) in enumerate([top_positive_query_tuple, q1_positive_query_tuple, q3_negative_query_tuple, bottom_negative_query_tuple]):
+        for i, (sentence, cleaned_sentence, proba) in enumerate([top_positive_query_tuple, q1_positive_query_tuple, q3_negative_query_tuple, bottom_negative_query_tuple]):
+            add_title_to_html(f'{class_name} {titles[i]} Query')
+
             lime_bias, lime_weights = generate_lime_weights(pipeline, class_names, cleaned_sentence, class_name)
             shap_weights = generate_shap_weights(pipeline, class_names, cleaned_sentence, class_name)
 
-            add_to_html(f'{class_name} {titles[i]} Query', sentence, -1, lime_bias, lime_weights, shap_weights)
+            add_to_html(sentence, proba, lime_bias, lime_weights, shap_weights)
 
         
     # train_df = pd.read_csv("data/train.csv")

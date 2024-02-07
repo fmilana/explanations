@@ -19,16 +19,16 @@ def get_sentence_dictionary():
         q3_negative = scores_df.loc["Q3", f"{class_name} negative"]
         # sample query from top 10 positive
         top_positive_query_df = probas_df.nlargest(10, f"proba {class_name}").sample(n=1)
-        top_positive_query_tuple = (top_positive_query_df["original_sentence"].values[0], top_positive_query_df["cleaned_sentence"].values[0])
+        top_positive_query_tuple = (top_positive_query_df["original_sentence"].values[0], top_positive_query_df["cleaned_sentence"].values[0], top_positive_query_df[f"proba {class_name}"].values[0])
         # sample query from around q1 positive
         q1_positive_query_df = probas_df[abs(probas_df[f"proba {class_name}"] - q1_positive) <= 0.05].sample(n=1)
-        q1_positive_query_tuple = (q1_positive_query_df["original_sentence"].values[0], q1_positive_query_df["cleaned_sentence"].values[0])
+        q1_positive_query_tuple = (q1_positive_query_df["original_sentence"].values[0], q1_positive_query_df["cleaned_sentence"].values[0], q1_positive_query_df[f"proba {class_name}"].values[0])
         # sample query from around q3 negative
         q3_negative_query_df = probas_df[abs(probas_df[f"proba {class_name}"] - q3_negative) <= 0.05].sample(n=1)
-        q3_negative_query_tuple = (q3_negative_query_df["original_sentence"].values[0], q3_negative_query_df["cleaned_sentence"].values[0])
+        q3_negative_query_tuple = (q3_negative_query_df["original_sentence"].values[0], q3_negative_query_df["cleaned_sentence"].values[0], q3_negative_query_df[f"proba {class_name}"].values[0])
         # sample query from bottom 10 negative
         bottom_negative_query_df = probas_df.nsmallest(10, f"proba {class_name}").sample(n=1)
-        bottom_negative_query_tuple = (bottom_negative_query_df["original_sentence"].values[0], bottom_negative_query_df["cleaned_sentence"].values[0])
+        bottom_negative_query_tuple = (bottom_negative_query_df["original_sentence"].values[0], bottom_negative_query_df["cleaned_sentence"].values[0], bottom_negative_query_df[f"proba {class_name}"].values[0])
         # remove sampled query from probas_df
         for df in [top_positive_query_df, q1_positive_query_df, q3_negative_query_df, bottom_negative_query_df]:
             probas_df = probas_df.merge(df, how='outer', indicator=True)

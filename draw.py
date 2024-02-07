@@ -4,8 +4,14 @@ from pathlib import Path
 from preprocess import get_stop_words
 
 
-def add_to_html(title, sentence, proba, lime_bias, lime_weights, shap_weights):
-    # words = re.sub(r'\W', ' ', sentence).split()
+def add_title_to_html(title):
+    html_path = Path("results/html/results.html")
+
+    with open(html_path, 'a+', encoding="utf-8") as f:
+        f.write(f'<h1>{title}</h1>\n')
+
+
+def add_to_html(sentence, proba, lime_bias, lime_weights, shap_weights):
     words = sentence.split()
 
     html_path = Path("results/html/results.html")
@@ -15,10 +21,9 @@ def add_to_html(title, sentence, proba, lime_bias, lime_weights, shap_weights):
     print(f'{len(lime_weights)} lime weights: {lime_weights}')
     print(f'{len(shap_weights)} shap_weights: {shap_weights}')
 
-    with open(html_path, 'a+') as f:
-        f.write(f'<h1>{title}</h1>\n')
-        if proba != -1:
-            f.write(f'<h2>{proba}</h2><br><br>\n')
+    with open(html_path, 'a+', encoding="utf-8") as f:
+        # if proba != -1:
+        f.write(f'<h2>{proba}</h2>\n')
         f.write('<h3>LIME</h3>\n')
         draw_sentence(words, stop_words, lime_weights, f)
         f.write('\n<br><br>\n')
@@ -51,7 +56,6 @@ def draw_sentence(words, stop_words, weights, f):
                     token=word))
             except (IndexError, ZeroDivisionError):
                 f.write(f'<span>{word}</span> ')
-                break
             
             weight_index += 1
 
