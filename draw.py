@@ -4,7 +4,7 @@ from pathlib import Path
 from preprocess import get_stop_words
 
 
-def create_html(sentence, predicted_category, predicted_category_proba, lime_bias, lime_weights, shap_weights):
+def add_to_html(title, sentence, proba, lime_bias, lime_weights, shap_weights):
     # words = re.sub(r'\W', ' ', sentence).split()
     words = sentence.split()
 
@@ -15,9 +15,10 @@ def create_html(sentence, predicted_category, predicted_category_proba, lime_bia
     print(f'{len(lime_weights)} lime weights: {lime_weights}')
     print(f'{len(shap_weights)} shap_weights: {shap_weights}')
 
-    with open(html_path, 'w+') as f:
-        f.write(f'<h1>{predicted_category}</h1>\n')
-        f.write(f'<h2>{predicted_category_proba}</h2><br><br>\n')
+    with open(html_path, 'a+') as f:
+        f.write(f'<h1>{title}</h1>\n')
+        if proba != -1:
+            f.write(f'<h2>{proba}</h2><br><br>\n')
         f.write('<h3>LIME</h3>\n')
         draw_sentence(words, stop_words, lime_weights, f)
         f.write('\n<br><br>\n')
@@ -36,17 +37,21 @@ def draw_sentence(words, stop_words, weights, f):
         if cleaned_word.lower() in stop_words:
             f.write(f'<span>{word}</span> ')
         else:
-            weight = weights[weight_index]
+            try:
+                weight = weights[weight_index]
 
-            f.write(f'<span '
-            'style="background-color: {color}; opacity: {opacity}" '
-            'title="{weight:.3f}"'
-            '>{token}</span> '.format(
-                color=format_hsl(
-                    weight_color_hsl(weight, weight_range, min_lightness=0.6)),
-                opacity=_weight_opacity(weight, weight_range),
-                weight=weights[weight_index],
-                token=word))
+                f.write(f'<span '
+                'style="background-color: {color}; opacity: {opacity}" '
+                'title="{weight:.3f}"'
+                '>{token}</span> '.format(
+                    color=format_hsl(
+                        weight_color_hsl(weight, weight_range, min_lightness=0.6)),
+                    opacity=_weight_opacity(weight, weight_range),
+                    weight=weights[weight_index],
+                    token=word))
+            except (IndexError, ZeroDivisionError):
+                f.write(f'<span>{word}</span> ')
+                break
             
             weight_index += 1
 

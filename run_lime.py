@@ -3,13 +3,8 @@ import numpy as np
 from pathlib import Path
 from augment import oversample
 from classifier import MultiLabelProbClassifier
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.neural_network import MLPClassifier
 from preprocess import remove_stop_words
-from sklearn.linear_model import LogisticRegression
-from sklearn.tree import DecisionTreeClassifier
 from vectorizer import Sentence2Vec
-from sklearn.multioutput import ClassifierChain
 from sklearn.pipeline import make_pipeline
 from eli5 import format_as_text, format_as_html, format_as_dict
 from eli5.lime import TextExplainer

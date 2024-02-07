@@ -22,13 +22,13 @@ def generate_shap(pipeline, categories, sentence):
 
     explanation = explainer([sentence])
 
-    # squeezed_values = np.squeeze(explanation.values)
-    # print(f"type(explanation) : {type(explanation)}")
-    # print(f"SHAP Squeezed Values Shape : {squeezed_values.shape}")
-    # print(f"SHAP Base Values  : {explanation.base_values}")
-    # print(f"SHAP Data: {explanation.data[0]}")
-    # print(f"type SHAP Values : {type(squeezed_values)}")
-    # print(f"SHAP Values = {squeezed_values}")
+    squeezed_values = np.squeeze(explanation.values)
+    print(f"type(explanation) : {type(explanation)}")
+    print(f"SHAP Squeezed Values Shape : {squeezed_values.shape}")
+    print(f"SHAP Base Values  : {explanation.base_values}")
+    print(f"SHAP Data: {explanation.data[0]}")
+    print(f"type SHAP Values : {type(squeezed_values)}")
+    print(f"SHAP Values = {squeezed_values}")
 
     if Path(html_path):
         open(html_path, "w").close()
@@ -38,24 +38,25 @@ def generate_shap(pipeline, categories, sentence):
         html_file.write(shap.plots.text(explanation, display=False))
     print(f"saved to {html_path}")
 
-    fig, axs = plt.subplots(1, len(categories), layout="constrained")
+    # ----------------png plot giving index error-----------------
+    # fig, axs = plt.subplots(1, len(categories), layout="constrained")
 
-    for i in range(len(categories)):
-        print(f'Plotting {categories[i]}...')
+    # for i in range(len(categories)):
+    #     print(f'Plotting {categories[i]}...')
         
-        plt.sca(axs[i])
-        axs[i].set_title(categories[i])
-        # plt.figure(figsize=(20,20))
-        shap.plots.bar(explanation[:, :, categories[i]].mean(axis=0),
-                        max_display=len(sentence.split()),
-                        order=shap.Explanation.argsort.flip,
-                        # order=shap.Explanation.abs,
-                        show=False)
+    #     plt.sca(axs[i])
+    #     axs[i].set_title(categories[i])
+    #     # plt.figure(figsize=(20,20))
+    #     shap.plots.bar(explanation[:, :, categories[i]].mean(axis=0),
+    #                     max_display=len(sentence.split()),
+    #                     order=shap.Explanation.argsort.flip,
+    #                     # order=shap.Explanation.abs,
+    #                     show=False)
 
-    fig.set_size_inches(6*len(categories), 10)
-    # plt.show()
-    plt.savefig(png_path)
-    print(f'saved to {png_path}')
+    # fig.set_size_inches(6*len(categories), 10)
+    # # plt.show()
+    # plt.savefig(png_path)
+    # print(f'saved to {png_path}')
 
     return np.squeeze(explanation.values)
 
