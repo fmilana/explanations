@@ -15,8 +15,8 @@ def get_sentence_dictionary():
     return_dict = {}
 
     for class_name in class_names:
-        q1_positive = scores_df.loc["Q1", f"{class_name} positive"]
-        q3_negative = scores_df.loc["Q3", f"{class_name} negative"]
+        q1_positive = scores_df.loc["Q1 positive", class_name]
+        q3_negative = scores_df.loc["Q3 positive", class_name]
         # sample query from top 10 positive
         top_positive_query_df = probas_df.nlargest(10, f"proba {class_name}").sample(n=1)
         top_positive_query_tuple = (top_positive_query_df["original_sentence"].values[0], top_positive_query_df["cleaned_sentence"].values[0], top_positive_query_df[f"proba {class_name}"].values[0])
