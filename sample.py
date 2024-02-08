@@ -2,7 +2,7 @@ import random
 import pandas as pd
 
 
-def get_sentence_dictionary():
+def sample_sentences():
     probas_df = pd.read_csv("results/probas.csv")
     # remove sentences with less than 5 words (when cleaned)
     probas_df = probas_df[probas_df['cleaned_sentence'].apply(lambda x: len(x.split()) >= 5)]
@@ -70,5 +70,3 @@ def get_sentence_dictionary():
             ]
 
     return return_dict
-
-

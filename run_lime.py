@@ -21,10 +21,11 @@ def explain_pred(text_explainer, pipeline, categories, sentence):
     txt = format_as_text(prediction)
     html = format_as_html(prediction)
     pred_dict = format_as_dict(prediction)
-    with open(txt_path, "a+") as txt_file:
+    print(pred_dict)
+    with open(txt_path, "a+", encoding="utf-8") as txt_file:
         txt_file.write(txt)
     print(f"saved to {txt_path}")
-    with open(html_path, "a+") as html_file:
+    with open(html_path, "a+", encoding="utf-8") as html_file:
         html_file.write(html)
     print(f"saved to {html_path}")
 
@@ -37,10 +38,12 @@ def explain_pred(text_explainer, pipeline, categories, sentence):
 def generate_lime(pipeline, categories, sentence):
     # clear lime.txt and lime.html
     if Path(txt_path):
-        open(txt_path, "w").close()
+        with open(txt_path, "w", encoding="utf-8") as txt_file:
+            pass
         print(f"cleared {txt_path}")
     if Path(html_path):
-        open(html_path, "w").close()
+        with open(html_path, "w", encoding="utf-8") as html_file:
+            pass
         print(f"cleared {html_path}")
 
     n_samples_list = [
@@ -65,6 +68,7 @@ def generate_lime(pipeline, categories, sentence):
         text_explainer = TextExplainer(
             # clf=DecisionTreeClassifier(max_depth=n_samples),
             # clf=RandomForestClassifier(max_depth=None, n_estimators=100, max_features=None, random_state=42),
+            token_pattern=r"\b\w+\b",
             n_samples=n_samples,
             position_dependent=True,
             random_state=42

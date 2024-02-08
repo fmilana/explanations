@@ -1,3 +1,4 @@
+import re
 import shap
 import numpy as np
 import pandas as pd
@@ -16,9 +17,7 @@ png_path = Path("results/shap/shap.png")
 
 
 def generate_shap(pipeline, categories, sentence):
-    explainer = shap.Explainer(pipeline.predict,
-                            masker=shap.maskers.Text(tokenizer=r"\W+"),
-                            output_names=categories)
+    explainer = shap.Explainer(pipeline.predict, masker=shap.maskers.Text(tokenizer=r"\b\w+\b"), output_names=categories)
 
     explanation = explainer([sentence])
 
@@ -31,10 +30,11 @@ def generate_shap(pipeline, categories, sentence):
     print(f"SHAP Values = {squeezed_values}")
 
     if Path(html_path):
-        open(html_path, "w").close()
+        with open(html_path, "w", encoding="utf-8") as html_file:
+            pass
         print(f"cleared {html_path}")
 
-    with open(html_path, "a+") as html_file:
+    with open(html_path, "a+", encoding="utf-8") as html_file:
         html_file.write(shap.plots.text(explanation, display=False))
     print(f"saved to {html_path}")
 

@@ -11,10 +11,7 @@ def add_title_to_html(title):
         f.write(f'<h1>{title}</h1>\n')
 
 
-def add_to_html(sentence, proba, lime_bias, lime_weights, shap_weights):
-    words = sentence.split()
-
-    html_path = Path("results/html/results.html")
+def add_to_html(html_path, words, proba, lime_bias, lime_weights, shap_weights):
     stop_words = get_stop_words()
 
     print(f'lime bias: {lime_bias}')
@@ -37,22 +34,24 @@ def draw_sentence(words, stop_words, weights, f):
     weight_range = get_weight_range(weights)
 
     for word in words:
-        cleaned_word = re.sub(r'\W', '', word)
+        cleaned_word = re.sub(r"\W", "", word)
 
         if cleaned_word.lower() in stop_words:
-            word = word.replace(cleaned_word, f'<span>{cleaned_word}</span>')
-            f.write(f'{word} ')
+            word = word.replace(cleaned_word, f"<span>{cleaned_word}</span>")
+            f.write(f"{word} ")
         else:
             try:
                 weight = weights[weight_index]
-
-                html_span =  f'<span style="background-color: {format_hsl(weight_color_hsl(weight, weight_range, min_lightness=0.6))}; opacity: {_weight_opacity(weight, weight_range)}" title="{weight}">{cleaned_word}</span>'
+                background_color = format_hsl(weight_color_hsl(weight, weight_range, min_lightness=0.6))
+                opacity = _weight_opacity(weight, weight_range)
+                
+                html_span =  f'<span style="background-color: {background_color}; opacity: {opacity}" title="{weight}">{cleaned_word}</span>'
 
                 word = word.replace(cleaned_word, html_span)
                 f.write(f"{word} ")
             except (IndexError, ZeroDivisionError):
                 word = word.replace(cleaned_word, f"<span>{cleaned_word}</span>")
-                f.write(f'{word} ')
+                f.write(f"{word} ")
             
             weight_index += 1
 

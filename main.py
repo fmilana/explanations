@@ -1,10 +1,12 @@
 from train import train_and_validate
-from sample import get_sentence_dictionary
-from generate import generate_html
+from sample import sample_sentences
+from generate import generate_html, generate_json
 
 
 clf = train_and_validate()
 
-sentence_dict = get_sentence_dictionary()
+sentence_dict = sample_sentences()
 
-generate_html(clf, sentence_dict)
+json_dict = generate_html(clf, sentence_dict, "results/html/")
+
+generate_json(json_dict, "results/json/")

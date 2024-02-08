@@ -1,4 +1,5 @@
 import re
+import json
 from draw import add_title_to_html, add_to_html
 from run_lime import generate_lime
 from run_shap import generate_shap
@@ -30,9 +31,41 @@ def generate_shap_weights(pipeline, class_names, sentence, class_name):
     return shap_weights
 
 
-def generate_html(clf, sentence_dict):
+def generate_json_entry(sentence, cleaned_sentence, proba, lime_weights, shap_weights):
+    words = re.findall(r"\b\w+\b", sentence)
+    cleaned_words = re.findall(r"\b\w+\b", cleaned_sentence)
+
+    print(f"{len(words)} words: {words}")
+    print(f"{len(cleaned_words)} cleaned words: {cleaned_words}")
+    print(f"{len(lime_weights)} lime weights: {lime_weights}")
+    print(f"{len(shap_weights)} shap weights: {shap_weights}")
+
+    # create parts row
+    parts = []
+    # cleaned_words might contain duplicates
+    for word in words:
+        if word in cleaned_words:
+            index = cleaned_words.index(word)
+            parts.append((word, lime_weights[index], shap_weights[index]))
+            cleaned_words.pop(index)
+            lime_weights.pop(index)
+            shap_weights.pop(index)
+        else:
+            parts.append((word, 0, 0))
+
+    return {
+        "classification_score": proba,
+        "parts": parts
+    }
+
+
+def generate_html(clf, sentence_dict, html_dir):
+    html_path = f"{html_dir}results.html"
+
+    json_dict = {}
     # clear html
-    open("results/html/results.html", "w").close()
+    with open(html_path, "w") as f:
+        pass
 
     pipeline = make_pipeline(Sentence2Vec(), clf)
     
@@ -52,61 +85,32 @@ def generate_html(clf, sentence_dict):
         for i, list_of_tuples in enumerate([tp_examples_tuples, fp_examples_tuples, fn_examples_tuples]):
             add_title_to_html(f'{class_name} {titles[i]}')
 
-            for (sentence, cleaned_sentence, proba) in list_of_tuples:
+            for j, (sentence, cleaned_sentence, proba) in enumerate(list_of_tuples):
+                words = re.findall(r"\b\w+\b", sentence)
+
                 lime_bias, lime_weights = generate_lime_weights(pipeline, class_names, cleaned_sentence, class_name)
                 shap_weights = generate_shap_weights(pipeline, class_names, cleaned_sentence, class_name)
+                json_dict[f"{class_name} {titles[i]} {j}"] = generate_json_entry(sentence, cleaned_sentence, proba, lime_weights, shap_weights)
 
-                add_to_html(sentence, proba, lime_bias, lime_weights, shap_weights)
+                add_to_html(html_path, words, proba, lime_bias, lime_weights, shap_weights)
                 
         titles = ['Top Positive', 'Q1 Positive', 'Q3 Negative', 'Bottom Negative']        
 
         for i, (sentence, cleaned_sentence, proba) in enumerate([top_positive_query_tuple, q1_positive_query_tuple, q3_negative_query_tuple, bottom_negative_query_tuple]):
+            words = re.findall(r"\b\w+\b", sentence)
+            
             add_title_to_html(f'{class_name} {titles[i]} Query')
 
             lime_bias, lime_weights = generate_lime_weights(pipeline, class_names, cleaned_sentence, class_name)
             shap_weights = generate_shap_weights(pipeline, class_names, cleaned_sentence, class_name)
+            json_dict[f"{class_name} {titles[i]} Query"] = generate_json_entry(sentence, cleaned_sentence, proba, lime_weights, shap_weights)
 
-            add_to_html(sentence, proba, lime_bias, lime_weights, shap_weights)
+            add_to_html(html_path, words, proba, lime_bias, lime_weights, shap_weights)
 
-        
-    # train_df = pd.read_csv("data/train.csv")
+    return json_dict
+    
 
-    # X_train = train_df["original_sentence"].tolist()
-    # Y_train = np.array(train_df.iloc[:, 7:])
-
-    # print("calling make_pipeline")
-    # pipeline = make_pipeline(Sentence2Vec())
-    # print("done calling make_pipeline")
-    # print("calling pipeline.fit")
-    # pipeline.fit(X_train, Y_train)
-    # print("done calling pipeline.fit")
-
-    # class_names = sentence_dict.keys()
-
-    # sentence = "This is not cooking that redefines the very notion of Greek food."
-    # # sentence = "Head chef Graham Chatham, who has cooked at Rules and Daylesford Organic, treats them with old school care, attention and at times, maternal indulgence."
-    # cleaned_sentence = remove_stop_words(sentence)
-
-    # prediction = pipeline.predict([cleaned_sentence]).flatten()
-    # try:
-    #     class_name = class_names[np.where(prediction==1)[0][0]]
-    # except IndexError:
-    #     class_name = "None"
-    # predict_proba = pipeline.predict_proba([cleaned_sentence]).flatten()
-
-    # class_name_proba = predict_proba[class_names.index(class_name)]
-
-    # print(f"class_name: \"{class_name}\"")
-    # print(f"predict_proba: {predict_proba}")
-
-    # lime_bias, lime_weights = generate_lime_weights(pipeline, class_names, cleaned_sentence)
-    # shap_weights = generate_shap_weights(pipeline, class_names, cleaned_sentence)
-
-    # create_html(
-    #     sentence, 
-    #     class_name, 
-    #     class_name_proba, 
-    #     lime_bias, 
-    #     lime_weights, 
-    #     shap_weights
-    #     )
+def generate_json(json_dict, json_dir):
+    json_path = f"{json_dir}results.json"
+    with open(json_path, "w") as f:
+        json.dump(json_dict, f, indent=4)
