@@ -40,22 +40,19 @@ def draw_sentence(words, stop_words, weights, f):
         cleaned_word = re.sub(r'\W', '', word)
 
         if cleaned_word.lower() in stop_words:
-            f.write(f'<span>{word}</span> ')
+            word = word.replace(cleaned_word, f'<span>{cleaned_word}</span>')
+            f.write(f'{word} ')
         else:
             try:
                 weight = weights[weight_index]
 
-                f.write(f'<span '
-                'style="background-color: {color}; opacity: {opacity}" '
-                'title="{weight:.3f}"'
-                '>{token}</span> '.format(
-                    color=format_hsl(
-                        weight_color_hsl(weight, weight_range, min_lightness=0.6)),
-                    opacity=_weight_opacity(weight, weight_range),
-                    weight=weights[weight_index],
-                    token=word))
+                html_span =  f'<span style="background-color: {format_hsl(weight_color_hsl(weight, weight_range, min_lightness=0.6))}; opacity: {_weight_opacity(weight, weight_range)}" title="{weight}">{cleaned_word}</span>'
+
+                word = word.replace(cleaned_word, html_span)
+                f.write(f"{word} ")
             except (IndexError, ZeroDivisionError):
-                f.write(f'<span>{word}</span> ')
+                word = word.replace(cleaned_word, f"<span>{cleaned_word}</span>")
+                f.write(f'{word} ')
             
             weight_index += 1
 
@@ -66,7 +63,7 @@ def weight_color_hsl(weight, weight_range, min_lightness=0.8):
     where the max absolute weight is given by weight_range.
     """
     hue = 120 if weight > 0 else 0
-    saturation = 1
+    saturation = 1.0
     rel_weight = (abs(weight) / weight_range) ** 0.7
     lightness = 1.0 - (1 - min_lightness) * rel_weight
     return hue, saturation, lightness
