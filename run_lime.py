@@ -21,7 +21,7 @@ def explain_pred(text_explainer, pipeline, categories, sentence):
     txt = format_as_text(prediction)
     html = format_as_html(prediction)
     pred_dict = format_as_dict(prediction)
-    print(pred_dict)
+    # print(pred_dict)
     with open(txt_path, "a+", encoding="utf-8") as txt_file:
         txt_file.write(txt)
     print(f"saved to {txt_path}")
