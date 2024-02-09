@@ -25,11 +25,3 @@ def remove_stop_words(text):
     text = ' '.join(word_tokens)
 
     return text
-
-
-def clean_sentence(sentence, keep_alphanum=False):
-    sentence = re.sub(r'\t', ' ', sentence)    
-    if not keep_alphanum:
-        sentence = re.sub(r'[^A-Za-z\s]+', '', sentence)
-    # sentence = re.sub(r'[ ]{2,}', ' ', sentence).strip()
-    return sentence
