@@ -1,7 +1,7 @@
 import re
 import json
-
 import joblib
+import regex
 from draw import add_title_to_html, add_to_html
 from run_lime import generate_lime
 from run_shap import generate_shap
@@ -18,7 +18,7 @@ def generate_lime_weights(pipeline, class_names, sentence, predicted_class):
     negative_weight_tuples = [(entry["feature"], entry["weight"]) for entry in target["feature_weights"]["neg"]]
 
     lime_tuples = positive_weight_tuples + negative_weight_tuples
-
+    
     # add missing words (words are missing if their LIME weight is 0.0)
     all_words = set(f"[{i}] {word}" for i, word in enumerate(re.findall(r"\b\w+\b", sentence)))
     lime_words = set(word for word, weight in lime_tuples)
@@ -44,21 +44,22 @@ def generate_shap_weights(pipeline, class_names, sentence, class_name):
 
 
 def generate_json_entry(sentence, cleaned_sentence, proba, lime_weights, shap_weights):
-    words = re.findall(r"\b\w+\b", sentence)
+    # extract tokens from sentence (including punctuation, symbols and whitespace)
+    tokens = regex.findall(r"\b\p{L}+\b|\S|\s", sentence)
+    # extract words from cleaned_sentence
     cleaned_words = re.findall(r"\b\w+\b", cleaned_sentence)
-
     # create parts row
     parts = []
     # cleaned_words might contain duplicates
-    for word in words:
-        if word in cleaned_words:
-            index = cleaned_words.index(word)
-            parts.append((word, lime_weights[index], shap_weights[index]))
+    for token in tokens:
+        if token in cleaned_words:
+            index = cleaned_words.index(token)
+            parts.append({"token": token, "lime_weight": lime_weights[index], "shap_weight": shap_weights[index]})
             cleaned_words.pop(index)
             lime_weights.pop(index)
             shap_weights.pop(index)
         else:
-            parts.append((word, 0, 0))
+            parts.append({"token": token, "lime_weight": 0, "shap_weight": 0})
 
     return {
         "classification_score": proba,
@@ -119,8 +120,8 @@ def generate_html(clf, sentence_dict, html_dir):
 
 def generate_json(json_dict, json_dir):
     json_path = f"{json_dir}results.json"
-    with open(json_path, "w") as f:
-        json.dump(json_dict, f, indent=4)
+    with open(json_path, "w", encoding="utf-8") as f:
+        json.dump(json_dict, f, indent=4, ensure_ascii=False)
 
 
 if __name__ == "__main__":

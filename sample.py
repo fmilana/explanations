@@ -12,11 +12,11 @@ def sample_sentences():
 
     class_names = [class_name for class_name in probas_df.columns[7:].tolist() if not (class_name.startswith("pred") or class_name.startswith("proba"))]
 
-    return_dict = {}
+    sample_dict = {}
 
     for class_name in class_names:
         q1_positive = scores_df.loc["Q1 positive", class_name]
-        q3_negative = scores_df.loc["Q3 positive", class_name]
+        q3_negative = scores_df.loc["Q3 negative", class_name]
         # sample query from top 10 positive
         top_positive_query_df = probas_df.nlargest(10, f"proba {class_name}").sample(n=1)
         top_positive_query_tuple = (top_positive_query_df["original_sentence"].values[0], top_positive_query_df["cleaned_sentence"].values[0], top_positive_query_df[f"proba {class_name}"].values[0])
@@ -58,8 +58,8 @@ def sample_sentences():
         random.shuffle(tp_examples_tuples)
         random.shuffle(fp_examples_tuples)
         random.shuffle(fn_examples_tuples)
-        # add to return_dict
-        return_dict[class_name] = [
+        # add to sample_dict
+        sample_dict[class_name] = [
             top_positive_query_tuple, 
             q1_positive_query_tuple, 
             q3_negative_query_tuple, 
@@ -69,4 +69,4 @@ def sample_sentences():
             fn_examples_tuples
             ]
 
-    return return_dict
+    return sample_dict
