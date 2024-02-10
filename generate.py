@@ -125,7 +125,10 @@ def generate_json(json_dict, json_dir):
 
 
 if __name__ == "__main__":
-    clf = joblib.load("model/model.sav")
-    sentence_dict = sample_sentences()
-    json_dict = generate_html(clf, sentence_dict, "results/html/")
-    generate_json(json_dict, "results/json/")
+    try:
+        clf = joblib.load("model/model.sav")
+        sentence_dict = sample_sentences()
+        json_dict = generate_html(clf, sentence_dict, "results/html/")
+        generate_json(json_dict, "results/json/")
+    except FileNotFoundError as e:
+        print("Model not found. Please run train.py first.")
