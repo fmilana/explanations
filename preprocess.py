@@ -19,17 +19,7 @@ def get_stop_words():
 def remove_stop_words(text):
     stop_words = get_stop_words()
 
-    print(f"removing stop words from: {text}")
-
     word_tokens = [word for word in word_tokenize(text) if word.lower() not in stop_words]
     text = ' '.join(word_tokens)
 
     return text
-
-
-def clean_sentence(sentence, keep_alphanum=False):
-    sentence = re.sub(r'\t', ' ', sentence)    
-    if not keep_alphanum:
-        sentence = re.sub(r'[^A-Za-z\s]+', '', sentence)
-    # sentence = re.sub(r'[ ]{2,}', ' ', sentence).strip()
-    return sentence

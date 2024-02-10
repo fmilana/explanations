@@ -18,9 +18,18 @@ def generate_lime_weights(pipeline, class_names, sentence, predicted_class):
     negative_weight_tuples = [(entry["feature"], entry["weight"]) for entry in target["feature_weights"]["neg"]]
 
     lime_tuples = positive_weight_tuples + negative_weight_tuples
+
+    # add missing words (words are missing if their LIME weight is 0.0)
+    all_words = set(f"[{i}] {word}" for i, word in enumerate(re.findall(r"\b\w+\b", sentence)))
+    lime_words = set(word for word, weight in lime_tuples)
+    missing_words = all_words - lime_words
+    lime_tuples.extend((word, 0.0) for word in missing_words)
+
     lime_tuples = sorted(lime_tuples, key=lambda x: int(re.search(r'\[(\d+)\]', x[0]).group(1)) if re.search(r'\[(\d+)\]', x[0]) is not None else -1)
 
     lime_weights = [tuple[1] for tuple in lime_tuples]
+
+    print(f"lime_tuples: {lime_tuples}")
 
     lime_bias = lime_weights.pop(0)
 

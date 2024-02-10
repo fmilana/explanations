@@ -110,6 +110,9 @@ def generate_scores_csv(class_names, test_df, average_best_thresholds_per_class)
 def train_and_validate():
     # load entire data
     df = pd.read_csv("data/train.csv")
+    # remove rows with null values in cleaned_sentence
+    df = df[df["cleaned_sentence"].notnull()]
+
     # get list of class names
     class_names = df.columns[7:].tolist()
     # process sentence embedding strings

@@ -6,7 +6,10 @@ from classifier import MultiLabelProbClassifier
 from vectorizer import Sentence2Vec
 
 
+# load training data
 train_df = pd.read_csv("data/train.csv")
+# remove rows with null values in cleaned_sentence
+train_df = train_df[train_df["cleaned_sentence"].notnull()]
 
 X_train = train_df["original_sentence"].tolist()
 Y_train = np.array(train_df.iloc[:, 7:])

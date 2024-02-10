@@ -21,6 +21,7 @@ def explain_pred(text_explainer, pipeline, categories, sentence):
     txt = format_as_text(prediction)
     html = format_as_html(prediction)
     pred_dict = format_as_dict(prediction)
+    # print(pred_dict)
     
     with open(txt_path, "a+", encoding="utf-8") as txt_file:
         txt_file.write(txt)
@@ -86,6 +87,8 @@ def generate_lime(pipeline, categories, sentence):
 
 if __name__ == "__main__":
     train_df = pd.read_csv("data/train.csv")
+    # remove rows with null values in cleaned_sentence
+    train_df = train_df[train_df["cleaned_sentence"].notnull()]
 
     X_train = train_df["original_sentence"].tolist()
     Y_train = np.array(train_df.iloc[:, 7:])
