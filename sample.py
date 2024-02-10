@@ -55,9 +55,9 @@ def sample_sentences():
         fp_examples_tuples = list(zip(fp_top_examples_df['original_sentence'], fp_top_examples_df['cleaned_sentence'], fp_top_examples_df[f'proba {class_name}'])) + list(zip(fp_q1_examples_df['original_sentence'], fp_q1_examples_df['cleaned_sentence'], fp_q1_examples_df[f'proba {class_name}']))
         fn_examples_tuples = list(zip(fn_q3_examples_df['original_sentence'], fn_q3_examples_df['cleaned_sentence'], fn_q3_examples_df[f'proba {class_name}'])) + list(zip(fn_bottom_examples_df['original_sentence'], fn_bottom_examples_df['cleaned_sentence'], fn_bottom_examples_df[f'proba {class_name}']))
         # shuffle lists
-        random.shuffle(tp_examples_tuples)
-        random.shuffle(fp_examples_tuples)
-        random.shuffle(fn_examples_tuples)
+        # random.shuffle(tp_examples_tuples)
+        # random.shuffle(fp_examples_tuples)
+        # random.shuffle(fn_examples_tuples)
         # add to sample_dict
         sample_dict[class_name] = [
             top_positive_query_tuple, 
