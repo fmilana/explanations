@@ -44,7 +44,7 @@ python -m spacy download en_core_web_md
 
 ## Generate explanations
 
-Train the model (model.sav saved in the model folder):
+Train the classifier (model.sav saved in the model folder):
 ```
 python train.py
 ```
