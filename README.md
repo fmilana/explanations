@@ -44,11 +44,13 @@ python -m spacy download en_core_web_md
 
 ## Generate explanations
 
-(Output stored in the results folder)
+Train the model (model.sav saved in the model folder):
 ```
-python run_[explanation_name].py
+python train.py
 ```
 
-explanation_names:
-- lime
-- shap
+Sample sentences and generate heatmaps (html and json saved in the results folder):
+
+```
+python generate.py
+```

@@ -1,4 +1,5 @@
 import random
+import joblib
 import numpy as np
 import pandas as pd
 from sklearn.metrics import f1_score
@@ -241,3 +242,9 @@ def train_and_validate():
     generate_scores_csv(class_names, test_df, average_best_thresholds_per_class)
 
     return clf
+
+
+if __name__ == "__main__":
+    clf = train_and_validate()
+    # save the model to disk
+    joblib.dump(clf, "model/model.sav")

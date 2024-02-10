@@ -1,9 +1,12 @@
 import re
 import json
+
+import joblib
 from draw import add_title_to_html, add_to_html
 from run_lime import generate_lime
 from run_shap import generate_shap
 from sklearn.pipeline import make_pipeline
+from sample import sample_sentences
 from vectorizer import Sentence2Vec
 
 
@@ -34,11 +37,6 @@ def generate_shap_weights(pipeline, class_names, sentence, class_name):
 def generate_json_entry(sentence, cleaned_sentence, proba, lime_weights, shap_weights):
     words = re.findall(r"\b\w+\b", sentence)
     cleaned_words = re.findall(r"\b\w+\b", cleaned_sentence)
-
-    print(f"{len(words)} words: {words}")
-    print(f"{len(cleaned_words)} cleaned words: {cleaned_words}")
-    print(f"{len(lime_weights)} lime weights: {lime_weights}")
-    print(f"{len(shap_weights)} shap weights: {shap_weights}")
 
     # create parts row
     parts = []
@@ -114,3 +112,10 @@ def generate_json(json_dict, json_dir):
     json_path = f"{json_dir}results.json"
     with open(json_path, "w") as f:
         json.dump(json_dict, f, indent=4)
+
+
+if __name__ == "__main__":
+    clf = joblib.load("model/model.sav")
+    sentence_dict = sample_sentences()
+    json_dict = generate_html(clf, sentence_dict, "results/html/")
+    generate_json(json_dict, "results/json/")
