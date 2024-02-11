@@ -3,47 +3,14 @@ import json
 import joblib
 import regex
 from draw import add_title_to_html, add_to_html
-from run_lime import generate_lime
-from run_shap import generate_shap
+from lime_explain import get_lime_weights
+from shap_explain import get_shap_weights
 from sklearn.pipeline import make_pipeline
 from sample import sample_sentences
 from vectorizer import Sentence2Vec
 
 
-def generate_lime_weights(pipeline, class_names, sentence, predicted_class):
-    lime_dict = generate_lime(pipeline, class_names, sentence)
-
-    target = lime_dict["targets"][class_names.index(predicted_class)]
-    positive_weight_tuples = [(entry["feature"], entry["weight"]) for entry in target["feature_weights"]["pos"]]
-    negative_weight_tuples = [(entry["feature"], entry["weight"]) for entry in target["feature_weights"]["neg"]]
-
-    lime_tuples = positive_weight_tuples + negative_weight_tuples
-    
-    # add missing words (words are missing if their LIME weight is 0.0)
-    all_words = set(f"[{i}] {word}" for i, word in enumerate(re.findall(r"\b\w+\b", sentence)))
-    lime_words = set(word for word, weight in lime_tuples)
-    missing_words = all_words - lime_words
-    lime_tuples.extend((word, 0.0) for word in missing_words)
-
-    lime_tuples = sorted(lime_tuples, key=lambda x: int(re.search(r'\[(\d+)\]', x[0]).group(1)) if re.search(r'\[(\d+)\]', x[0]) is not None else -1)
-
-    lime_weights = [tuple[1] for tuple in lime_tuples]
-
-    print(f"lime_tuples: {lime_tuples}")
-
-    lime_bias = lime_weights.pop(0)
-
-    return lime_bias, lime_weights
-
-
-def generate_shap_weights(pipeline, class_names, sentence, class_name):
-    shap_array = generate_shap(pipeline, class_names, sentence)
-    shap_weights = shap_array[:, class_names.index(class_name)].tolist()
-
-    return shap_weights
-
-
-def generate_json_entry(sentence, cleaned_sentence, proba, lime_weights, shap_weights):
+def create_json_entry(sentence, cleaned_sentence, proba, lime_weights, shap_weights):
     # extract tokens from sentence (including punctuation, symbols and whitespace)
     tokens = regex.findall(r"\b\p{L}+\b|\S|\s", sentence)
     # extract words from cleaned_sentence
@@ -79,7 +46,7 @@ def generate_html(clf, sentence_dict, html_dir):
     
     class_names = list(sentence_dict.keys())
 
-    for class_name in sentence_dict.keys():
+    for class_name in class_names:
         top_positive_query_tuple = sentence_dict[class_name][0]
         q1_positive_query_tuple = sentence_dict[class_name][1]
         q3_negative_query_tuple = sentence_dict[class_name][2]
@@ -96,9 +63,10 @@ def generate_html(clf, sentence_dict, html_dir):
             for j, (sentence, cleaned_sentence, proba) in enumerate(list_of_tuples):
                 words = re.findall(r"\b\w+\b", sentence)
 
-                lime_bias, lime_weights = generate_lime_weights(pipeline, class_names, cleaned_sentence, class_name)
-                shap_weights = generate_shap_weights(pipeline, class_names, cleaned_sentence, class_name)
-                json_dict[f"{class_name} {titles[i]} {j}"] = generate_json_entry(sentence, cleaned_sentence, proba, lime_weights, shap_weights)
+                lime_bias, lime_weights = get_lime_weights(pipeline, class_names, cleaned_sentence, class_name)
+                shap_weights = get_shap_weights(pipeline, class_names, cleaned_sentence, class_name)
+
+                json_dict[f"{class_name} {titles[i]} {j}"] = create_json_entry(sentence, cleaned_sentence, proba, lime_weights, shap_weights)
 
                 add_to_html(html_path, words, proba, lime_bias, lime_weights, shap_weights)
                 
@@ -109,9 +77,10 @@ def generate_html(clf, sentence_dict, html_dir):
             
             add_title_to_html(f'{class_name} {titles[i]} Query')
 
-            lime_bias, lime_weights = generate_lime_weights(pipeline, class_names, cleaned_sentence, class_name)
-            shap_weights = generate_shap_weights(pipeline, class_names, cleaned_sentence, class_name)
-            json_dict[f"{class_name} {titles[i]} Query"] = generate_json_entry(sentence, cleaned_sentence, proba, lime_weights, shap_weights)
+            lime_bias, lime_weights = get_lime_weights(pipeline, class_names, cleaned_sentence, class_name)
+            shap_weights = get_shap_weights(pipeline, class_names, cleaned_sentence, class_name)
+
+            json_dict[f"{class_name} {titles[i]} Query"] = create_json_entry(sentence, cleaned_sentence, proba, lime_weights, shap_weights)
 
             add_to_html(html_path, words, proba, lime_bias, lime_weights, shap_weights)
 
