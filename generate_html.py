@@ -1,7 +1,8 @@
-import json
 import re
-from draw import _weight_opacity, format_hsl, get_weight_range, weight_color_hsl
+import json
 from preprocess import get_stop_words
+from draw import _weight_opacity, format_hsl, get_weight_range, weight_color_hsl
+
 
 
 def add_style(html_path, font_family, line_height):
