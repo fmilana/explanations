@@ -44,13 +44,18 @@ python -m spacy download en_core_web_md
 
 ## Generate explanations
 
-Train the classifier (model.sav saved in the model folder):
+1. Train the classifier (saved in model/model.sav):
 ```
 python train.py
 ```
 
-Sample sentences and generate heatmaps (html and json saved in the results folder):
+2. Sample sentences and generate JSON (saved in results/json/results.json):
 
 ```
-python generate.py
+python generate_json.py
+```
+
+3. Generate HTML (saved in results/html/results.html):
+```
+python generate_html.py
 ```

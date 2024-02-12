@@ -106,7 +106,6 @@ def generate_scores_csv(class_names, test_df, average_best_thresholds_per_class)
     scores_df.to_csv("results/scores.csv")
     
 
-
 def train_and_validate():
     # load entire data
     df = pd.read_csv("data/train.csv")

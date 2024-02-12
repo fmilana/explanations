@@ -4,7 +4,6 @@ import pandas as pd
 from sklearn.neighbors import NearestNeighbors
 
 # from: https://github.com/niteshsukhwani/MLSMOTE/blob/master/mlsmote.py
-
 def get_tail_label(df):
     """
     Give tail label colums of the given target dataframe

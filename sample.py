@@ -2,12 +2,11 @@ import random
 import pandas as pd
 
 
-def sample_sentences():
-    probas_df = pd.read_csv("results/probas.csv")
-    # remove sentences with less than 5 words (when cleaned)
+def sample_sentences(probas_df, scores_df):
+    # remove sentences from probas_df with less than 5 words (when cleaned)
     probas_df = probas_df[probas_df['cleaned_sentence'].apply(lambda x: len(x.split()) >= 5)]
     probas_df = probas_df.reset_index(drop=True)
-    scores_df = pd.read_csv("results/scores.csv")
+    
     scores_df.set_index(scores_df.columns[0], inplace=True)
 
     class_names = [class_name for class_name in probas_df.columns[7:].tolist() if not (class_name.startswith("pred") or class_name.startswith("proba"))]

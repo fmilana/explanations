@@ -1,49 +1,19 @@
 import re
-from pathlib import Path
-from eli5 import format_as_text, format_as_html, format_as_dict
+from eli5 import format_as_dict
 from eli5.lime import TextExplainer
 
 
-txt_path = Path("results/lime/lime.txt")
-html_path = Path("results/lime/lime.html")
-
-
-def save_to_files(explanation):
-    txt = format_as_text(explanation)
-    html = format_as_html(explanation)
-    
-    with open(txt_path, "a+", encoding="utf-8") as f:
-        f.write(txt)
-    print(f"saved to {txt_path}")
-    
-    with open(html_path, "a+", encoding="utf-8") as f:
-        f.write(html)
-    print(f"saved to {html_path}")
-
-
-def run_lime(pipeline, categories, sentence):
-    # clear txt and html
-    if Path(txt_path):
-        with open(txt_path, "w", encoding="utf-8") as f:
-            pass
-        print(f"cleared {txt_path}")
-    if Path(html_path):
-        with open(html_path, "w", encoding="utf-8") as f:
-            pass
-        print(f"cleared {html_path}")
-
-    n_samples_list = [300, 1000, 2000, 3000, 4000, 5000]
+def run_lime(pipeline, categories, sentence, optimized):
+    if optimized:
+        n_samples_list = [300, 1000, 2000, 3000, 4000, 5000]
+    else:
+        n_samples_list = [2000]
 
     best_score = 0
     best_dict = {}
 
     for n_samples in n_samples_list:
-        text_explainer = TextExplainer(
-            token_pattern=r"\b\w+\b",
-            n_samples=n_samples,
-            position_dependent=True,
-            random_state=42
-        )
+        text_explainer = TextExplainer(token_pattern=r"\b\w+\b", n_samples=n_samples, position_dependent=True, random_state=42)
 
         print(f"fitting lime text_explainer with n_samples={n_samples}")        
 
@@ -51,13 +21,11 @@ def run_lime(pipeline, categories, sentence):
 
         explanation = text_explainer.explain_prediction(target_names=categories)
 
-        save_to_files(explanation)
-
         pred_dict = format_as_dict(explanation)
 
         metrics = text_explainer.metrics_
 
-        print(metrics)
+        print(f"lime metrics: {metrics}")
 
         score = metrics["score"]
         
@@ -68,8 +36,8 @@ def run_lime(pipeline, categories, sentence):
     return best_dict
 
 
-def get_lime_weights(pipeline, class_names, sentence, class_name):
-    lime_dict = run_lime(pipeline, class_names, sentence)
+def get_lime_weights(pipeline, class_names, sentence, class_name, optimized):
+    lime_dict = run_lime(pipeline, class_names, sentence, optimized)
 
     target = lime_dict["targets"][class_names.index(class_name)]
     positive_weight_tuples = [(entry["feature"], entry["weight"]) for entry in target["feature_weights"]["pos"]]
@@ -87,8 +55,8 @@ def get_lime_weights(pipeline, class_names, sentence, class_name):
 
     lime_weights = [tuple[1] for tuple in lime_tuples]
 
-    print(f"lime_tuples: {lime_tuples}")
-
     lime_bias = lime_weights.pop(0)
+
+    print(f"=================> {len(lime_weights)} lime_weights: {lime_weights}")
 
     return lime_bias, lime_weights
