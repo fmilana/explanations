@@ -1,7 +1,7 @@
 import re
 import json
 from preprocess import get_stop_words
-from draw import _weight_opacity, format_hsl, get_weight_range, weight_color_hsl
+from draw import get_weight_range, get_weight_rgb
 
 
 
@@ -43,21 +43,22 @@ def get_sentence_html(tokens, stop_words, weights):
 
         try:
             weight = weights[weight_index]
-
-            background_color = format_hsl(weight_color_hsl(weight, weight_range, min_lightness=0.6))
-            opacity = _weight_opacity(weight, weight_range)
-
-            if cleaned_token.lower() in stop_words:
+        
+            if cleaned_token.lower() in stop_words or weight == 0.0:
                 # html_span = f'<span style="background-color: #e0e0e0">{cleaned_token}</span>'
                 html_span = f'<span>{cleaned_token}</span>'
             else:
+                background_color = get_weight_rgb(weight, weight_range)
+                # opacity = get_weight_opacity(weight, weight_range)
                 # background color
                 # html_span = f'<span style="background-color: {background_color}; opacity: {opacity}" title="{weight}">{cleaned_token}</span>'
                 # standard underline           
                 # html_span = f'<span style="text-decoration: underline; text-decoration-color: {background_color}; text-decoration-thickness: 6px; opacity: {opacity}" title="{weight}">{cleaned_token}</span>'
                 # underline overlap fix
                 cleaned_token = cleaned_token.replace(' ', '&nbsp;')
-                html_span = f'<span style="border-bottom: 6px solid {background_color}; opacity: {opacity}; padding-bottom: 1px;" title="{weight:.2f}">{cleaned_token}</span>'
+                # html_span = f'<span style="border-bottom: 6px solid {background_color}; opacity: {opacity}; padding-bottom: 1px;" title="{weight:.2f}">{cleaned_token}</span>'
+                html_span = f'<span style="border-bottom: 6px solid {background_color}; padding-bottom: 1px;" title="{weight:.2f}">{cleaned_token}</span>'
+
 
             token = token.replace(cleaned_token, html_span)
             sentence_html += f'{token}'
