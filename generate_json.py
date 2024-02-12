@@ -11,7 +11,7 @@ from sklearn.pipeline import make_pipeline
 from vectorizer import Sentence2Vec
 
 
-def load_samples(samples_csv_path):
+def _load_samples(samples_csv_path):
     # read csv into a DataFrame
     samples_df = pd.read_csv(samples_csv_path, index_col=0)
     # define rows that contain lists of tuples
@@ -30,14 +30,14 @@ def load_samples(samples_csv_path):
     return samples_dict
 
 
-def get_all_weights(pipeline, class_names, sentence, class_name, proba, optimized):
+def _get_all_weights(pipeline, class_names, sentence, class_name, proba, optimized):
     lime_bias, lime_weights = get_lime_weights(pipeline, class_names, sentence, class_name, optimized=optimized)
     shap_weights = get_shap_weights(pipeline, class_names, sentence, class_name)
     occlusion_weights = get_occlusion_weights(pipeline, class_names, sentence, class_name, proba)
     return lime_weights, shap_weights, occlusion_weights
 
 
-def create_json_entry(sentence, cleaned_sentence, proba, lime_weights, shap_weights, occlusion_weights):
+def _create_json_entry(sentence, cleaned_sentence, proba, lime_weights, shap_weights, occlusion_weights):
     # extract tokens from sentence (including punctuation, symbols and whitespace)
     tokens = regex.findall(r'\b\p{L}+\b|\S|\s', sentence)
     # extract words from cleaned_sentence
@@ -62,7 +62,7 @@ def create_json_entry(sentence, cleaned_sentence, proba, lime_weights, shap_weig
     }
 
 
-def generate_file(clf, sentence_dict, json_path, optimized):
+def _generate_file(clf, sentence_dict, json_path, optimized):
     # clear json
     with open(json_path, 'w') as f:
         pass
@@ -72,6 +72,9 @@ def generate_file(clf, sentence_dict, json_path, optimized):
     pipeline = make_pipeline(Sentence2Vec(), clf)
 
     class_names = list(sentence_dict.keys())
+
+    total_number_of_sentences = sum([len(sentence_dict[class_name]['TP Examples Tuples']) + len(sentence_dict[class_name]['FP Examples Tuples']) + len(sentence_dict[class_name]['FN Examples Tuples']) + 4 for class_name in class_names])
+    progress_counter = 0
 
     for class_name in class_names:
         tp_examples_tuples = sentence_dict[class_name]['TP Examples Tuples']
@@ -86,14 +89,20 @@ def generate_file(clf, sentence_dict, json_path, optimized):
 
         for i, list_of_tuples in enumerate([tp_examples_tuples, fp_examples_tuples, fn_examples_tuples]):
             for j, (sentence, cleaned_sentence, proba) in enumerate(list_of_tuples):
-                lime_weights, shap_weights, occlusion_weights = get_all_weights(pipeline, class_names, cleaned_sentence, class_name, proba, optimized)
-                json_dict[f'{class_name} {titles[i]} {j}'] = create_json_entry(sentence, cleaned_sentence, proba, lime_weights, shap_weights, occlusion_weights)
+                lime_weights, shap_weights, occlusion_weights = _get_all_weights(pipeline, class_names, cleaned_sentence, class_name, proba, optimized)
+                json_dict[f'{class_name} {titles[i]} {j}'] = _create_json_entry(sentence, cleaned_sentence, proba, lime_weights, shap_weights, occlusion_weights)
+
+                print(f'{progress_counter+1}/{total_number_of_sentences} sentences processed.', end='\r')
+                progress_counter += 1
 
         titles = ['Top Positive', 'Q1 Positive', 'Q3 Negative', 'Bottom Negative']
 
         for i, (sentence, cleaned_sentence, proba) in enumerate([top_positive_query_tuple, q1_positive_query_tuple, q3_negative_query_tuple, bottom_negative_query_tuple]):
-            lime_weights, shap_weights, occlusion_weights = get_all_weights(pipeline, class_names, cleaned_sentence, class_name, proba, optimized)
-            json_dict[f'{class_name} {titles[i]} Query'] = create_json_entry(sentence, cleaned_sentence, proba, lime_weights, shap_weights, occlusion_weights)
+            lime_weights, shap_weights, occlusion_weights = _get_all_weights(pipeline, class_names, cleaned_sentence, class_name, proba, optimized)
+            json_dict[f'{class_name} {titles[i]} Query'] = _create_json_entry(sentence, cleaned_sentence, proba, lime_weights, shap_weights, occlusion_weights)
+
+            print(f'{progress_counter+1}/{total_number_of_sentences} sentences processed.', end='\r')
+            progress_counter += 1
 
     with open(json_path, 'w', encoding='utf-8') as f:
         json.dump(json_dict, f, indent=4, ensure_ascii=False)
@@ -109,10 +118,10 @@ if __name__ == '__main__':
         clf = joblib.load('model/model.sav')
         print('Model loaded.')
         print('Loading sampled sentences...')
-        samples_dict = load_samples('results/samples.csv')
+        samples_dict = _load_samples('results/samples.csv')
         print('Sampled sentences loaded.')
         print('Generating JSON...')
-        generate_file(clf, samples_dict, 'results/json/results.json', optimized=True)
+        _generate_file(clf, samples_dict, 'results/json/results.json', optimized=True)
         print('JSON generated.')
     except FileNotFoundError as e:
         print('Model and/or data not found. Please run train.py and sample.py first.')

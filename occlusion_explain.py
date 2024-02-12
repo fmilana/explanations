@@ -15,6 +15,4 @@ def get_occlusion_weights(pipeline, class_names, sentence, class_name, proba):
 
         occlusion_weights.append(occlusion_weight)
 
-    print(f'=================> {len(occlusion_weights)} occlusion_weights: {occlusion_weights}')
-
     return occlusion_weights

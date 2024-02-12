@@ -5,33 +5,33 @@ from draw import get_weight_range, get_weight_rgb
 
 
 
-def add_style(html_path, font_family, line_height):
+def _add_style(html_path, font_family, line_height):
     with open(html_path, 'a+', encoding='utf-8') as f:
         f.write(f'<style>\nbody {{\nfont-family: {font_family};\nline-height: {line_height};\n}}\n</style>\n')
 
 
-def add_title(title,  html_path):
+def _add_title(title,  html_path):
     with open(html_path, 'a+', encoding='utf-8') as f:
         f.write(f'<h1>{title}</h1>\n')
 
 
-def add_section(tokens, proba, lime_weights, shap_weights, occlusion_weights, html_path):
+def _add_section(tokens, proba, lime_weights, shap_weights, occlusion_weights, html_path):
     stop_words = get_stop_words()
 
     with open(html_path, 'a+', encoding='utf-8') as f:
         f.write(f'<h2>score: {proba:.2f}</h2>\n')
         f.write('<h3>LIME</h3>\n')
-        f.write(get_sentence_html(tokens, stop_words, lime_weights))
+        f.write(_get_sentence_html(tokens, stop_words, lime_weights))
         f.write('\n<br><br>\n')
         f.write('<h3>SHAP</h3>\n')
-        f.write(get_sentence_html(tokens, stop_words, shap_weights))
+        f.write(_get_sentence_html(tokens, stop_words, shap_weights))
         f.write('\n<br><br>\n')
         f.write('<h3>OCCLUSION</h3>\n')
-        f.write(get_sentence_html(tokens, stop_words, occlusion_weights))
+        f.write(_get_sentence_html(tokens, stop_words, occlusion_weights))
         f.write('\n<br><br>\n')
         
 
-def get_sentence_html(tokens, stop_words, weights):
+def _get_sentence_html(tokens, stop_words, weights):
     weight_index = 0
 
     weight_range = get_weight_range(weights)
@@ -71,16 +71,16 @@ def get_sentence_html(tokens, stop_words, weights):
     return sentence_html
             
 
-def generate_file(results_json, html_path):
+def _generate_file(results_json, html_path):
     # clear html
     with open(html_path, 'w', encoding='utf-8') as f:
         pass
 
     # add style
-    add_style(html_path, font_family='Arial', line_height='2')
+    _add_style(html_path, font_family='Arial', line_height='2')
 
     for key, value in results_json.items():
-        add_title(key, html_path)
+        _add_title(key, html_path)
 
         proba = value['classification_score']
         parts = value['parts']
@@ -90,7 +90,7 @@ def generate_file(results_json, html_path):
         shap_weights = [part['shap_weight'] for part in parts]
         occlusion_weights = [part['occlusion_weight'] for part in parts]
 
-        add_section(tokens, proba, lime_weights, shap_weights, occlusion_weights, html_path)
+        _add_section(tokens, proba, lime_weights, shap_weights, occlusion_weights, html_path)
 
 
 if __name__ == '__main__':
@@ -99,7 +99,7 @@ if __name__ == '__main__':
         results_json = json.load(open('results/json/results.json', 'r', encoding='utf-8'))
         print('JSON loaded.')
         print('Generating HTML...')
-        generate_file(results_json, 'results/html/results.html')
+        _generate_file(results_json, 'results/html/results.html')
         print('HTML generated.')
     except FileNotFoundError:
         print('JSON not found. Please run generate_json.py first.')

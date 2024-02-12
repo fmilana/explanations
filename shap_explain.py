@@ -13,6 +13,4 @@ def get_shap_weights(pipeline, class_names, sentence, class_name):
 
     shap_weights = shap_array[:, class_names.index(class_name)].tolist()
 
-    print(f'=================> {len(shap_weights)} shap_weights: {shap_weights}')
-
     return shap_weights

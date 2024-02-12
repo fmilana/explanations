@@ -2,7 +2,7 @@ import random
 import pandas as pd
 
 
-def generate_samples_csv(probas_df, scores_df):
+def _generate_samples_csv(probas_df, scores_df):
     # remove sentences from probas_df with less than 5 words (when cleaned)
     probas_df = probas_df[probas_df['cleaned_sentence'].apply(lambda x: len(x.split()) >= 5)]
     probas_df = probas_df.reset_index(drop=True)
@@ -80,7 +80,7 @@ if __name__ == '__main__':
         scores_df = pd.read_csv('results/scores.csv')
         print('Data loaded.')
         print('Sampling sentences...')
-        generate_samples_csv(probas_df, scores_df)
+        _generate_samples_csv(probas_df, scores_df)
         print('Sentences sampled and stored in results/samples.csv.')
     except FileNotFoundError as e:
         print('results/probas.csv and/or results/scores.csv not found. Please run train.py first')

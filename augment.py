@@ -3,8 +3,9 @@ import numpy as np
 import pandas as pd
 from sklearn.neighbors import NearestNeighbors
 
+
 # from: https://github.com/niteshsukhwani/MLSMOTE/blob/master/mlsmote.py
-def get_tail_label(df):
+def _get_tail_label(df):
     """
     Give tail label colums of the given target dataframe
     
@@ -28,7 +29,7 @@ def get_tail_label(df):
     return tail_label
 
 
-def get_index(df):
+def _get_index(df):
   """
   give the index of all tail_label rows
   args
@@ -37,7 +38,7 @@ def get_index(df):
   return
   index: list, a list containing index number of all the tail label
   """
-  tail_labels = get_tail_label(df)
+  tail_labels = _get_tail_label(df)
   index = set()
   for tail_label in tail_labels:
     sub_index = set(df[df[tail_label] == 1].index)
@@ -45,7 +46,7 @@ def get_index(df):
   return list(index)
 
 
-def get_minority_samples(X, y):
+def _get_minority_samples(X, y):
     """
     Give minority dataframe containing all the tail labels
     
@@ -57,13 +58,13 @@ def get_minority_samples(X, y):
     X_sub: pandas.DataFrame, the feature vector minority dataframe
     y_sub: pandas.DataFrame, the target vector minority dataframe
     """
-    index = get_index(y)
+    index = _get_index(y)
     X_sub = X[X.index.isin(index)].reset_index(drop = True)
     y_sub = y[y.index.isin(index)].reset_index(drop = True)
     return X_sub, y_sub
 
 
-def nearest_neighbour(X):
+def _nearest_neighbour(X):
     """
     Give index of 5 nearest neighbor of all the instance
     
@@ -78,7 +79,7 @@ def nearest_neighbour(X):
     return indices
 
 
-def MLSMOTE(X, y, n_sample):
+def _MLSMOTE(X, y, n_sample):
     """
     Give the augmented data using MLSMOTE algorithm
     
@@ -91,7 +92,7 @@ def MLSMOTE(X, y, n_sample):
     new_X: pandas.DataFrame, augmented feature vector data
     target: pandas.DataFrame, augmented target vector data
     """
-    indices2 = nearest_neighbour(X)
+    indices2 = _nearest_neighbour(X)
     n = len(indices2)
     new_X = np.zeros((n_sample, X.shape[1]))
     target = np.zeros((n_sample, y.shape[1]))
@@ -117,13 +118,13 @@ def oversample(X, Y):
     X_shape_old = X.shape
     class_dist = [y/Y.shape[0] for y in Y.sum(axis=0)]
     print('checking for minority classes in train split...')
-    X_sub, Y_sub = get_minority_samples(pd.DataFrame(X), pd.DataFrame(Y))
+    X_sub, Y_sub = _get_minority_samples(pd.DataFrame(X), pd.DataFrame(Y))
 
     if np.shape(X_sub)[0] > 0: # only oversample training set if minority samples are found
         print('minority classes found.')
         print('oversampling...')
         try:
-            X_res, Y_res = MLSMOTE(X_sub, Y_sub, round(X.shape[0]/5))       
+            X_res, Y_res = _MLSMOTE(X_sub, Y_sub, round(X.shape[0]/5))       
             X = np.concatenate((X, X_res.to_numpy())) # append augmented samples
             Y = np.concatenate((Y, Y_res.to_numpy())) # to original dataframes
             print('oversampled.')

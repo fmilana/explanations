@@ -8,7 +8,7 @@ from classifier import MultiLabelProbClassifier
 
 
 # generates confusion matrices for each class and saves to csv
-def generate_cm_csv(test_df, class_names, Y_pred, Y_true):
+def _generate_cm_csv(test_df, class_names, Y_pred, Y_true):
     for i, class_name in enumerate(class_names):
         # return boolean arrays for each category
         TP = np.logical_and(Y_pred[:, i] == 1, Y_true[:, i] == 1)
@@ -43,7 +43,7 @@ def generate_cm_csv(test_df, class_names, Y_pred, Y_true):
         class_df.to_csv(f'results/cm/{class_name}_cm.csv', index=False)
 
 
-def generate_probas_csv(test_df, class_names, Y_test_prob):
+def _generate_probas_csv(test_df, class_names, Y_test_prob):
     proba_df = pd.DataFrame(Y_test_prob, columns=[f'proba {class_names}' for i, class_names in enumerate(class_names)])
     test_df = test_df.reset_index(drop=True)
     test_df = pd.concat([test_df, proba_df], axis=1)
@@ -52,7 +52,7 @@ def generate_probas_csv(test_df, class_names, Y_test_prob):
     return test_df
 
 
-def generate_scores_csv(class_names, test_df, average_best_thresholds_per_class):
+def _generate_scores_csv(class_names, test_df, average_best_thresholds_per_class):
     index = ['threshold', 
              'Q1 positive', 
              'median positive', 
@@ -106,7 +106,7 @@ def generate_scores_csv(class_names, test_df, average_best_thresholds_per_class)
     scores_df.to_csv('results/scores.csv')
     
 
-def train_and_validate(df):
+def _train_and_validate(df):
     # remove rows with null values in cleaned_sentence
     df = df[df['cleaned_sentence'].notnull()]
 
@@ -143,6 +143,7 @@ def train_and_validate(df):
     best_scores_per_class = np.zeros((len(review_ids), len(class_names)))
 
     for iteration_index, review_id in enumerate(review_ids):
+        print(f'==> Training on split {iteration_index+1}/{len(review_ids)}...')
         # create validation set
         validation_df = df[df['review_id'] == review_id]
         # create training set by removing test and validation sets
@@ -181,6 +182,8 @@ def train_and_validate(df):
             # store the best threshold and score for the current class
             best_thresholds_per_class[iteration_index, class_index] = best_threshold_for_class
             best_scores_per_class[iteration_index, class_index] = best_score_for_class
+
+        print('done.')
 
     # calculate the average best threshold and scores for each class (average of each column)
     average_best_thresholds_per_class = np.mean(best_thresholds_per_class, axis=0)
@@ -235,11 +238,11 @@ def train_and_validate(df):
     print(f'==========================================')
 
     # write confusion matrices to csv's
-    generate_cm_csv(test_df, class_names, Y_test_pred, Y_test)
+    _generate_cm_csv(test_df, class_names, Y_test_pred, Y_test)
     # write test_df probas to csv
-    test_df = generate_probas_csv(test_df, class_names, Y_test_prob)
+    test_df = _generate_probas_csv(test_df, class_names, Y_test_prob)
     # write scores to csv
-    generate_scores_csv(class_names, test_df, average_best_thresholds_per_class)
+    _generate_scores_csv(class_names, test_df, average_best_thresholds_per_class)
 
     return clf
 
@@ -250,7 +253,7 @@ if __name__ == '__main__':
         df = pd.read_csv('data/train.csv')
         print('train.csv loaded.')
         print('Training and validating model...')
-        clf = train_and_validate(df)
+        clf = _train_and_validate(df)
         # save the model to disk
         joblib.dump(clf, 'model/model.sav')
         print('Saved model to disk.')
