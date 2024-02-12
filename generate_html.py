@@ -18,7 +18,7 @@ def add_section(tokens, proba, lime_weights, shap_weights, occlusion_weights, ht
     stop_words = get_stop_words()
 
     with open(html_path, "a+", encoding="utf-8") as f:
-        f.write(f'<h2>{proba}</h2>\n')
+        f.write(f'<h2>score: {proba}</h2>\n')
         f.write('<h3>LIME</h3>\n')
         f.write(get_sentence_html(tokens, stop_words, lime_weights))
         f.write('\n<br><br>\n')
