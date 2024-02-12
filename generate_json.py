@@ -70,9 +70,9 @@ def generate_file(clf, sentence_dict, json_path):
                 lime_weights, shap_weights, occlusion_weights = get_all_weights(pipeline, class_names, cleaned_sentence, class_name, proba)
                 json_dict[f"{class_name} {titles[i]} {j}"] = create_json_entry(sentence, cleaned_sentence, proba, lime_weights, shap_weights, occlusion_weights)
 
-            for (sentence, cleaned_sentence, proba) in [top_positive_query_tuple, q1_positive_query_tuple, q3_negative_query_tuple, bottom_negative_query_tuple]:
-                lime_weights, shap_weights, occlusion_weights = get_all_weights(pipeline, class_names, cleaned_sentence, class_name, proba)
-                json_dict[f"{class_name} {titles[i]} Query"] = create_json_entry(sentence, cleaned_sentence, proba, lime_weights, shap_weights, occlusion_weights)
+        for (sentence, cleaned_sentence, proba) in [top_positive_query_tuple, q1_positive_query_tuple, q3_negative_query_tuple, bottom_negative_query_tuple]:
+            lime_weights, shap_weights, occlusion_weights = get_all_weights(pipeline, class_names, cleaned_sentence, class_name, proba)
+            json_dict[f"{class_name} {titles[i]} Query"] = create_json_entry(sentence, cleaned_sentence, proba, lime_weights, shap_weights, occlusion_weights)
 
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(json_dict, f, indent=4, ensure_ascii=False)

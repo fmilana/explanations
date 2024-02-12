@@ -19,7 +19,7 @@ def add_section(tokens, proba, lime_weights, shap_weights, occlusion_weights, ht
     stop_words = get_stop_words()
 
     with open(html_path, "a+", encoding="utf-8") as f:
-        f.write(f'<h2>score: {proba}</h2>\n')
+        f.write(f'<h2>score: {proba:.2f}</h2>\n')
         f.write('<h3>LIME</h3>\n')
         f.write(get_sentence_html(tokens, stop_words, lime_weights))
         f.write('\n<br><br>\n')
@@ -57,7 +57,7 @@ def get_sentence_html(tokens, stop_words, weights):
                 # html_span = f'<span style="text-decoration: underline; text-decoration-color: {background_color}; text-decoration-thickness: 6px; opacity: {opacity}" title="{weight}">{cleaned_token}</span>'
                 # underline overlap fix
                 cleaned_token = cleaned_token.replace(" ", "&nbsp;")
-                html_span = f'<span style="border-bottom: 6px solid {background_color}; opacity: {opacity}; padding-bottom: 1px;" title="{weight}">{cleaned_token}</span>'
+                html_span = f'<span style="border-bottom: 6px solid {background_color}; opacity: {opacity}; padding-bottom: 1px;" title="{weight:.2f}">{cleaned_token}</span>'
 
             token = token.replace(cleaned_token, html_span)
             sentence_html += f"{token}"
