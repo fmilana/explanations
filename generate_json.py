@@ -11,8 +11,8 @@ from sample import sample_sentences
 from vectorizer import Sentence2Vec
 
 
-def get_all_weights(pipeline, class_names, sentence, class_name, proba):
-    lime_bias, lime_weights = get_lime_weights(pipeline, class_names, sentence, class_name, optimized=False)
+def get_all_weights(pipeline, class_names, sentence, class_name, proba, optimized):
+    lime_bias, lime_weights = get_lime_weights(pipeline, class_names, sentence, class_name, optimized=optimized)
     shap_weights = get_shap_weights(pipeline, class_names, sentence, class_name)
     occlusion_weights = get_occlusion_weights(pipeline, class_names, sentence, class_name, proba)
     return lime_weights, shap_weights, occlusion_weights
@@ -43,7 +43,7 @@ def create_json_entry(sentence, cleaned_sentence, proba, lime_weights, shap_weig
     }
 
 
-def generate_file(clf, sentence_dict, json_path):
+def generate_file(clf, sentence_dict, json_path, optimized):
     # clear json
     with open(json_path, "w") as f:
         pass
@@ -67,11 +67,13 @@ def generate_file(clf, sentence_dict, json_path):
 
         for i, list_of_tuples in enumerate([tp_examples_tuples, fp_examples_tuples, fn_examples_tuples]):
             for j, (sentence, cleaned_sentence, proba) in enumerate(list_of_tuples):
-                lime_weights, shap_weights, occlusion_weights = get_all_weights(pipeline, class_names, cleaned_sentence, class_name, proba)
+                lime_weights, shap_weights, occlusion_weights = get_all_weights(pipeline, class_names, cleaned_sentence, class_name, proba, optimized)
                 json_dict[f"{class_name} {titles[i]} {j}"] = create_json_entry(sentence, cleaned_sentence, proba, lime_weights, shap_weights, occlusion_weights)
 
-        for (sentence, cleaned_sentence, proba) in [top_positive_query_tuple, q1_positive_query_tuple, q3_negative_query_tuple, bottom_negative_query_tuple]:
-            lime_weights, shap_weights, occlusion_weights = get_all_weights(pipeline, class_names, cleaned_sentence, class_name, proba)
+        titles = ['Top Positive', 'Q1 Positive', 'Q3 Negative', 'Bottom Negative']
+
+        for i, (sentence, cleaned_sentence, proba) in enumerate([top_positive_query_tuple, q1_positive_query_tuple, q3_negative_query_tuple, bottom_negative_query_tuple]):
+            lime_weights, shap_weights, occlusion_weights = get_all_weights(pipeline, class_names, cleaned_sentence, class_name, proba, optimized)
             json_dict[f"{class_name} {titles[i]} Query"] = create_json_entry(sentence, cleaned_sentence, proba, lime_weights, shap_weights, occlusion_weights)
 
     with open(json_path, "w", encoding="utf-8") as f:
@@ -91,7 +93,7 @@ if __name__ == "__main__":
         sentence_dict = sample_sentences(probas_df, scores_df)
         print("Sentences sampled.")
         print("Generating JSON...")
-        generate_file(clf, sentence_dict, "results/json/results.json")
+        generate_file(clf, sentence_dict, "results/json/results.json", optimized=True)
         print("JSON generated.")
     except FileNotFoundError as e:
         print("Model and/or data not found. Please run train.py first.")
