@@ -4,7 +4,7 @@ from draw import _weight_opacity, format_hsl, get_weight_range, weight_color_hsl
 from preprocess import get_stop_words
 
 
-def add_style(html_path, font_family="Arial", line_height="2"):
+def add_style(html_path, font_family, line_height):
     with open(html_path, "a+", encoding="utf-8") as f:
         f.write(f'<style>\nbody {{\nfont-family: {font_family};\nline-height: {line_height};\n}}\n</style>\n')
 
@@ -50,8 +50,11 @@ def get_sentence_html(tokens, stop_words, weights):
                 # html_span = f'<span style="background-color: #e0e0e0">{cleaned_token}</span>'
                 html_span = f'<span>{cleaned_token}</span>'
             else:
+                # background color
                 # html_span = f'<span style="background-color: {background_color}; opacity: {opacity}" title="{weight}">{cleaned_token}</span>'
+                # standard underline           
                 # html_span = f'<span style="text-decoration: underline; text-decoration-color: {background_color}; text-decoration-thickness: 6px; opacity: {opacity}" title="{weight}">{cleaned_token}</span>'
+                # underline overlap fix
                 cleaned_token = cleaned_token.replace(" ", "&nbsp;")
                 html_span = f'<span style="border-bottom: 6px solid {background_color}; opacity: {opacity}; padding-bottom: 1px;" title="{weight}">{cleaned_token}</span>'
 
@@ -72,7 +75,7 @@ def generate_file(results_json, html_path):
         pass
 
     # add style
-    add_style(html_path)
+    add_style(html_path, font_family="Arial", line_height="2")
 
     for key, value in results_json.items():
         add_title(key, html_path)
