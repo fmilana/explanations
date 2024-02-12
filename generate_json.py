@@ -1,6 +1,6 @@
 import re
 import json
-from turtle import pd
+import pandas as pd
 import joblib
 import regex
 from lime_explain import get_lime_weights
@@ -88,10 +88,10 @@ if __name__ == "__main__":
         clf = joblib.load("model/model.sav")
         print("Model loaded.")
         print("Sampling sentences...")
-        sentence_dict = sample_sentences(clf, probas_df, scores_df)
+        sentence_dict = sample_sentences(probas_df, scores_df)
         print("Sentences sampled.")
         print("Generating JSON...")
-        generate_file(sentence_dict, "results/json/results.json")
+        generate_file(clf, sentence_dict, "results/json/results.json")
         print("JSON generated.")
     except FileNotFoundError as e:
         print("Model and/or data not found. Please run train.py first.")
