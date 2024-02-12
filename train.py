@@ -16,10 +16,10 @@ def generate_cm_csv(test_df, class_names, Y_pred, Y_true):
         TN = np.logical_and(Y_pred[:, i] == 0, Y_true[:, i] == 0)
         FN = np.logical_and(Y_pred[:, i] == 0, Y_true[:, i] == 1)
         # get sentences for each category using boolean arrays as indices
-        tp_sentences = test_df["original_sentence"][TP].tolist()
-        fp_sentences = test_df["original_sentence"][FP].tolist()
-        tn_sentences = test_df["original_sentence"][TN].tolist()
-        fn_sentences = test_df["original_sentence"][FN].tolist()
+        tp_sentences = test_df['original_sentence'][TP].tolist()
+        fp_sentences = test_df['original_sentence'][FP].tolist()
+        tn_sentences = test_df['original_sentence'][TN].tolist()
+        fn_sentences = test_df['original_sentence'][FN].tolist()
         # get number of sentences
         num_tp_sentences = len(tp_sentences)
         num_fp_sentences = len(fp_sentences)
@@ -34,34 +34,34 @@ def generate_cm_csv(test_df, class_names, Y_pred, Y_true):
         fn_sentences.extend([''] * (max_len - len(fn_sentences)))
         # create new df
         class_df = pd.DataFrame({
-            f"true positives ({num_tp_sentences})": tp_sentences,
-            f"false positives ({num_fp_sentences})": fp_sentences,
-            f"true negatives ({num_tn_sentences})": tn_sentences,
-            f"false negatives ({num_fn_sentences})": fn_sentences
+            f'true positives ({num_tp_sentences})': tp_sentences,
+            f'false positives ({num_fp_sentences})': fp_sentences,
+            f'true negatives ({num_tn_sentences})': tn_sentences,
+            f'false negatives ({num_fn_sentences})': fn_sentences
         })
         # save to csv
-        class_df.to_csv(f"results/cm/{class_name}_cm.csv", index=False)
+        class_df.to_csv(f'results/cm/{class_name}_cm.csv', index=False)
 
 
 def generate_probas_csv(test_df, class_names, Y_test_prob):
-    proba_df = pd.DataFrame(Y_test_prob, columns=[f"proba {class_names}" for i, class_names in enumerate(class_names)])
+    proba_df = pd.DataFrame(Y_test_prob, columns=[f'proba {class_names}' for i, class_names in enumerate(class_names)])
     test_df = test_df.reset_index(drop=True)
     test_df = pd.concat([test_df, proba_df], axis=1)
-    test_df.to_csv("results/probas.csv", index=False)
+    test_df.to_csv('results/probas.csv', index=False)
 
     return test_df
 
 
 def generate_scores_csv(class_names, test_df, average_best_thresholds_per_class):
-    index = ["threshold", 
-             "Q1 positive", 
-             "median positive", 
-             "Q3 positive", 
-             "mean positive", 
-             "Q1 negative", 
-             "median negative", 
-             "Q3 negative", 
-             "mean negative"]
+    index = ['threshold', 
+             'Q1 positive', 
+             'median positive', 
+             'Q3 positive', 
+             'mean positive', 
+             'Q1 negative', 
+             'median negative', 
+             'Q3 negative', 
+             'mean negative']
 
     scores_df = pd.DataFrame(index=index, columns=class_names)
 
@@ -70,71 +70,71 @@ def generate_scores_csv(class_names, test_df, average_best_thresholds_per_class)
     scores_dict = {}
 
     for class_name in class_names:
-        positive_class_df = test_df[test_df[f"pred {class_name}"] == 1]
-        negative_class_df = test_df[test_df[f"pred {class_name}"] == 0]
+        positive_class_df = test_df[test_df[f'pred {class_name}'] == 1]
+        negative_class_df = test_df[test_df[f'pred {class_name}'] == 0]
 
-        Q1_positive = positive_class_df[f"proba {class_name}"].quantile(0.25)
-        median_positive = positive_class_df[f"proba {class_name}"].median()
-        Q3_positive = positive_class_df[f"proba {class_name}"].quantile(0.75)
-        mean_positive = positive_class_df[f"proba {class_name}"].mean()
-        Q1_negative = negative_class_df[f"proba {class_name}"].quantile(0.25)
-        median_negative = negative_class_df[f"proba {class_name}"].median()
-        Q3_negative = negative_class_df[f"proba {class_name}"].quantile(0.75)
-        mean_negative = negative_class_df[f"proba {class_name}"].mean()
+        Q1_positive = positive_class_df[f'proba {class_name}'].quantile(0.25)
+        median_positive = positive_class_df[f'proba {class_name}'].median()
+        Q3_positive = positive_class_df[f'proba {class_name}'].quantile(0.75)
+        mean_positive = positive_class_df[f'proba {class_name}'].mean()
+        Q1_negative = negative_class_df[f'proba {class_name}'].quantile(0.25)
+        median_negative = negative_class_df[f'proba {class_name}'].median()
+        Q3_negative = negative_class_df[f'proba {class_name}'].quantile(0.75)
+        mean_negative = negative_class_df[f'proba {class_name}'].mean()
 
         scores_dict[class_name] = {
-            "Q1 positive": Q1_positive,
-            "median positive": median_positive,
-            "Q3 positive": Q3_positive,
-            "mean positive": mean_positive,
-            "Q1 negative": Q1_negative,
-            "median negative": median_negative,
-            "Q3 negative": Q3_negative,
-            "mean negative": mean_negative
+            'Q1 positive': Q1_positive,
+            'median positive': median_positive,
+            'Q3 positive': Q3_positive,
+            'mean positive': mean_positive,
+            'Q1 negative': Q1_negative,
+            'median negative': median_negative,
+            'Q3 negative': Q3_negative,
+            'mean negative': mean_negative
         }
 
     for class_name in class_names:
-        scores_df.loc['Q1 positive', class_name] = scores_dict[class_name]["Q1 positive"]
-        scores_df.loc['median positive', class_name] = scores_dict[class_name]["median positive"]
-        scores_df.loc['Q3 positive', class_name] = scores_dict[class_name]["Q3 positive"]
-        scores_df.loc['mean positive', class_name] = scores_dict[class_name]["mean positive"]
-        scores_df.loc['Q1 negative', class_name] = scores_dict[class_name]["Q1 negative"]
-        scores_df.loc['median negative', class_name] = scores_dict[class_name]["median negative"]
-        scores_df.loc['Q3 negative', class_name] = scores_dict[class_name]["Q3 negative"]
-        scores_df.loc['mean negative', class_name] = scores_dict[class_name]["mean negative"]
+        scores_df.loc['Q1 positive', class_name] = scores_dict[class_name]['Q1 positive']
+        scores_df.loc['median positive', class_name] = scores_dict[class_name]['median positive']
+        scores_df.loc['Q3 positive', class_name] = scores_dict[class_name]['Q3 positive']
+        scores_df.loc['mean positive', class_name] = scores_dict[class_name]['mean positive']
+        scores_df.loc['Q1 negative', class_name] = scores_dict[class_name]['Q1 negative']
+        scores_df.loc['median negative', class_name] = scores_dict[class_name]['median negative']
+        scores_df.loc['Q3 negative', class_name] = scores_dict[class_name]['Q3 negative']
+        scores_df.loc['mean negative', class_name] = scores_dict[class_name]['mean negative']
                                                                         
-    scores_df.to_csv("results/scores.csv")
+    scores_df.to_csv('results/scores.csv')
     
 
-def train_and_validate():
+def train_and_validate(train_df):
     # load entire data
-    df = pd.read_csv("data/train.csv")
+    df = train_df
     # remove rows with null values in cleaned_sentence
-    df = df[df["cleaned_sentence"].notnull()]
+    df = df[df['cleaned_sentence'].notnull()]
 
     # get list of class names
     class_names = df.columns[7:].tolist()
     # process sentence embedding strings
-    df["sentence_embedding"] = df["sentence_embedding"].apply(
+    df['sentence_embedding'] = df['sentence_embedding'].apply(
         lambda x: np.fromstring(
-            x.replace("\n","")
-            .replace("[","")
-            .replace(",", " ")
-            .replace("]",""), sep=" "
+            x.replace('\n','')
+            .replace('[','')
+            .replace(',', ' ')
+            .replace(']',''), sep=' '
         )
     )
     # create list of review ids for training
-    review_ids = df["review_id"].unique().tolist()
+    review_ids = df['review_id'].unique().tolist()
     # set test size
     test_size = 5 # arbitrary
     # randomly select 5 test ids
     test_ids = random.sample(review_ids, test_size)
     # create test df based on test ids
-    test_df = df[df["review_id"].isin(test_ids)]
+    test_df = df[df['review_id'].isin(test_ids)]
     # remove test ids from review ids
     review_ids = [id for id in review_ids if id not in test_ids]
     # filter df to exclude test ids
-    df = df[~df["review_id"].isin(test_ids)]
+    df = df[~df['review_id'].isin(test_ids)]
     # initialise classifier
     clf = MultiLabelProbClassifier()
 
@@ -146,16 +146,16 @@ def train_and_validate():
 
     for iteration_index, review_id in enumerate(review_ids):
         # create validation set
-        validation_df = df[df["review_id"] == review_id]
+        validation_df = df[df['review_id'] == review_id]
         # create training set by removing test and validation sets
-        train_df = df[~df["review_id"].isin(test_ids + [review_id])]
+        train_df = df[~df['review_id'].isin(test_ids + [review_id])]
         # prepare training data
-        X_train = np.array(train_df["sentence_embedding"].tolist())
+        X_train = np.array(train_df['sentence_embedding'].tolist())
         Y_train = np.array(train_df.iloc[:, 7:])
         # oversample minority classes (if present)
         X_train, Y_train = oversample(X_train, Y_train)
         # prepare validation data
-        X_validation = np.array(validation_df["sentence_embedding"].tolist())
+        X_validation = np.array(validation_df['sentence_embedding'].tolist())
         Y_validation = np.array(validation_df.iloc[:, 7:])
         # fit classifier
         clf.fit(X_train, Y_train)
@@ -188,18 +188,18 @@ def train_and_validate():
     average_best_thresholds_per_class = np.mean(best_thresholds_per_class, axis=0)
     average_scores_per_class = np.mean(best_scores_per_class, axis=0)
 
-    print(f"===============VALIDATION RESULTS===============")
-    print(f"average best thresholds per class: {average_best_thresholds_per_class}")
-    print(f"average scores per class: {average_scores_per_class}")
-    print(f"average score across all classes: {np.mean(average_scores_per_class)}")
-    print(f"================================================")
+    print(f'===============VALIDATION RESULTS===============')
+    print(f'average best thresholds per class: {average_best_thresholds_per_class}')
+    print(f'average scores per class: {average_scores_per_class}')
+    print(f'average score across all classes: {np.mean(average_scores_per_class)}')
+    print(f'================================================')
 
     # train the classifier on the full training set
-    X_train_full = np.array(df["sentence_embedding"].tolist())
+    X_train_full = np.array(df['sentence_embedding'].tolist())
     Y_train_full = np.array(df.iloc[:, 7:])
     clf.fit(X_train_full, Y_train_full)
     # prepare test data
-    X_test = np.array(test_df["sentence_embedding"].tolist())
+    X_test = np.array(test_df['sentence_embedding'].tolist())
     Y_test = np.array(test_df.iloc[:, 7:])
     # predict probabilities on the test set
     Y_test_prob = clf.predict_proba(X_test)
@@ -212,8 +212,8 @@ def train_and_validate():
         Y_test_pred[:, class_index] = (Y_test_prob[:, class_index] >= average_best_thresholds_per_class[class_index]).astype(int)
     # append predictions to test_df and write to csv
     for i, class_name in enumerate(class_names):
-        test_df[f"pred {class_name}"] = Y_test_pred[:, i]
-    test_df.to_csv("results/output.csv", index=False)
+        test_df[f'pred {class_name}'] = Y_test_pred[:, i]
+    test_df.to_csv('results/output.csv', index=False)
 
     # create 1D NumPy arrays to store test scores for each class
     test_scores_per_class = np.zeros((len(class_names)))
@@ -225,16 +225,16 @@ def train_and_validate():
         # using average best thresholds
         test_scores_per_class[i] = f1_score(Y_test[:, i], Y_test_pred[:, i])
     # calculate overall test score using 0.5 threshold
-    base_test_score = f1_score(Y_test, Y_base_test_pred, average="weighted")
+    base_test_score = f1_score(Y_test, Y_base_test_pred, average='weighted')
     # calculate overall test score using average best thresholds
-    test_score = f1_score(Y_test, Y_test_pred, average="weighted")
+    test_score = f1_score(Y_test, Y_test_pred, average='weighted')
 
-    print(f"===============TEST RESULTS===============")
-    print(f"test F1 Scores per class using 0.5 threshold: {base_test_scores_per_class}")
-    print(f"test F1 Scores per class using average best thresholds: {test_scores_per_class}")
-    print(f"base test F1 Score using 0.5 threshold: {base_test_score}")
-    print(f"test F1 Score using average best thresholds ({average_best_thresholds_per_class}): {test_score}")
-    print(f"==========================================")
+    print(f'===============TEST RESULTS===============')
+    print(f'test F1 Scores per class using 0.5 threshold: {base_test_scores_per_class}')
+    print(f'test F1 Scores per class using average best thresholds: {test_scores_per_class}')
+    print(f'base test F1 Score using 0.5 threshold: {base_test_score}')
+    print(f'test F1 Score using average best thresholds ({average_best_thresholds_per_class}): {test_score}')
+    print(f'==========================================')
 
     # write confusion matrices to csv's
     generate_cm_csv(test_df, class_names, Y_test_pred, Y_test)
@@ -246,7 +246,15 @@ def train_and_validate():
     return clf
 
 
-if __name__ == "__main__":
-    clf = train_and_validate()
-    # save the model to disk
-    joblib.dump(clf, "model/model.sav")
+if __name__ == '__main__':
+    try:
+        print('Loading train.csv...')
+        pd.read_csv('data/train.csv')
+        print('train.csv loaded.')
+        print('Training and validating model...')
+        clf = train_and_validate()
+        # save the model to disk
+        joblib.dump(clf, 'model/model.sav')
+        print('Saved model to disk.')
+    except FileNotFoundError as e:
+        print('data/train.csv not found.')

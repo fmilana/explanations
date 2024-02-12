@@ -11,13 +11,13 @@ class MultiLabelProbClassifier(BaseEstimator, ClassifierMixin):
 
     def __init__(self):
         xgb = XGBClassifier()
-        self.chains = [ClassifierChain(xgb, order="random", random_state=i) for i in range(self.number_of_chains)]
+        self.chains = [ClassifierChain(xgb, order='random', random_state=i) for i in range(self.number_of_chains)]
 
     # fit the XGBoost chains
     def fit(self, X, Y): 
         for i, chain in enumerate(self.chains): # fit each XGBoost chain
             chain.fit(X, Y)
-            print(f"{i+1}/{len(self.chains)} chains fit")
+            print(f'{i+1}/{len(self.chains)} chains fit')
 
     # get predictions from the XGBoost chains
     def predict(self, X):

@@ -49,13 +49,18 @@ python -m spacy download en_core_web_md
 python train.py
 ```
 
-2. Sample sentences and generate JSON (saved in results/json/results.json):
+2. Sample sentences (saved in results/samples.csv):
+```
+python sample.py
+```
+
+3. Generate JSON (saved in results/json/results.json):
 
 ```
 python generate_json.py
 ```
 
-3. Generate HTML (saved in results/html/results.html):
+4. Generate HTML from JSON (saved in results/html/results.html):
 ```
 python generate_html.py
 ```

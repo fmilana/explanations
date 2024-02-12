@@ -5,7 +5,7 @@ from pathlib import Path
 
 # https://coderzcolumn.com/tutorials/artificial-intelligence/explain-text-classification-models-using-shap-values-keras
 def get_shap_weights(pipeline, class_names, sentence, class_name):
-    explainer = shap.Explainer(pipeline.predict, masker=shap.maskers.Text(tokenizer=r"\b\w+\b"), output_names=class_names)
+    explainer = shap.Explainer(pipeline.predict, masker=shap.maskers.Text(tokenizer=r'\b\w+\b'), output_names=class_names)
 
     explanation = explainer([sentence])
 
@@ -13,6 +13,6 @@ def get_shap_weights(pipeline, class_names, sentence, class_name):
 
     shap_weights = shap_array[:, class_names.index(class_name)].tolist()
 
-    print(f"=================> {len(shap_weights)} shap_weights: {shap_weights}")
+    print(f'=================> {len(shap_weights)} shap_weights: {shap_weights}')
 
     return shap_weights

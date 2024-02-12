@@ -13,9 +13,9 @@ def run_lime(pipeline, categories, sentence, optimized):
     best_dict = {}
 
     for n_samples in n_samples_list:
-        text_explainer = TextExplainer(token_pattern=r"\b\w+\b", n_samples=n_samples, position_dependent=True, random_state=42)
+        text_explainer = TextExplainer(token_pattern=r'\b\w+\b', n_samples=n_samples, position_dependent=True, random_state=42)
 
-        print(f"fitting lime text_explainer with n_samples={n_samples}")        
+        print(f'fitting lime text_explainer with n_samples={n_samples}')        
 
         text_explainer.fit(sentence, pipeline.predict_proba)
 
@@ -25,9 +25,9 @@ def run_lime(pipeline, categories, sentence, optimized):
 
         metrics = text_explainer.metrics_
 
-        print(f"lime metrics: {metrics}")
+        print(f'lime metrics: {metrics}')
 
-        score = metrics["score"]
+        score = metrics['score']
         
         if score > best_score:
             best_score = score
@@ -39,14 +39,14 @@ def run_lime(pipeline, categories, sentence, optimized):
 def get_lime_weights(pipeline, class_names, sentence, class_name, optimized):
     lime_dict = run_lime(pipeline, class_names, sentence, optimized)
 
-    target = lime_dict["targets"][class_names.index(class_name)]
-    positive_weight_tuples = [(entry["feature"], entry["weight"]) for entry in target["feature_weights"]["pos"]]
-    negative_weight_tuples = [(entry["feature"], entry["weight"]) for entry in target["feature_weights"]["neg"]]
+    target = lime_dict['targets'][class_names.index(class_name)]
+    positive_weight_tuples = [(entry['feature'], entry['weight']) for entry in target['feature_weights']['pos']]
+    negative_weight_tuples = [(entry['feature'], entry['weight']) for entry in target['feature_weights']['neg']]
 
     lime_tuples = positive_weight_tuples + negative_weight_tuples
     
     # add missing words (words are missing if their LIME weight is 0.0)
-    all_words = set(f"[{i}] {word}" for i, word in enumerate(re.findall(r"\b\w+\b", sentence)))
+    all_words = set(f'[{i}] {word}' for i, word in enumerate(re.findall(r'\b\w+\b', sentence)))
     lime_words = set(word for word, weight in lime_tuples)
     missing_words = all_words - lime_words
     lime_tuples.extend((word, 0.0) for word in missing_words)
@@ -57,6 +57,6 @@ def get_lime_weights(pipeline, class_names, sentence, class_name, optimized):
 
     lime_bias = lime_weights.pop(0)
 
-    print(f"=================> {len(lime_weights)} lime_weights: {lime_weights}")
+    print(f'=================> {len(lime_weights)} lime_weights: {lime_weights}')
 
     return lime_bias, lime_weights
