@@ -106,16 +106,14 @@ def generate_scores_csv(class_names, test_df, average_best_thresholds_per_class)
     scores_df.to_csv('results/scores.csv')
     
 
-def train_and_validate(train_df):
-    # load entire data
-    df = train_df
+def train_and_validate(df):
     # remove rows with null values in cleaned_sentence
     df = df[df['cleaned_sentence'].notnull()]
 
     # get list of class names
     class_names = df.columns[7:].tolist()
     # process sentence embedding strings
-    df['sentence_embedding'] = df['sentence_embedding'].apply(
+    df.loc[:, 'sentence_embedding'] = df['sentence_embedding'].apply(
         lambda x: np.fromstring(
             x.replace('\n','')
             .replace('[','')
@@ -249,10 +247,10 @@ def train_and_validate(train_df):
 if __name__ == '__main__':
     try:
         print('Loading train.csv...')
-        pd.read_csv('data/train.csv')
+        df = pd.read_csv('data/train.csv')
         print('train.csv loaded.')
         print('Training and validating model...')
-        clf = train_and_validate()
+        clf = train_and_validate(df)
         # save the model to disk
         joblib.dump(clf, 'model/model.sav')
         print('Saved model to disk.')
