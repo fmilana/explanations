@@ -9,6 +9,7 @@ from occlusion_explain import get_occlusion_weights
 from shap_explain import get_shap_weights
 from sklearn.pipeline import make_pipeline
 from vectorizer import Sentence2Vec
+from pipeline_helper import MyPipeline
 
 
 def _load_samples(samples_csv_path):
@@ -54,7 +55,7 @@ def _create_json_entry(sentence, cleaned_sentence, proba, lime_weights, shap_wei
             shap_weights.pop(index)
             occlusion_weights.pop(index)
         else:
-            parts.append({'token': token, 'lime_weight': 0, 'shap_weight': 0, 'occlusion_weight': 0})
+            parts.append({'token': token, 'lime_weight': 0.0, 'shap_weight': 0.0, 'occlusion_weight': 0.0})
 
     return {
         'classification_score': proba,
@@ -69,7 +70,7 @@ def _generate_file(clf, sentence_dict, json_path, optimized):
 
     json_dict = {}
 
-    pipeline = make_pipeline(Sentence2Vec(), clf)
+    pipeline = MyPipeline(steps=[('vectorizer', Sentence2Vec()), ('classifier', clf)])
 
     class_names = list(sentence_dict.keys())
 

@@ -89,10 +89,6 @@ def _generate_file(results_json, html_path):
         shap_weights = [part['shap_weight'] for part in parts]
         occlusion_weights = [part['occlusion_weight'] for part in parts]
 
-        if "pappardelle" in tokens:
-            print('pappardelle found')
-            print(f'shap weights: {shap_weights}')
-
         _add_section(tokens, proba, lime_weights, shap_weights, occlusion_weights, html_path)
 
 
