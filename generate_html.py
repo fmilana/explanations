@@ -54,10 +54,14 @@ def _get_sentence_html(tokens, stop_words, weights):
                 # opacity = get_weight_opacity(weight, weight_range)
                 # background color
                 # html_span = f'<span style="background-color: {background_color_half_opacity}" title="{weight}">{cleaned_token}</span>'
+                # border-bottom
+                # html_span = f'<span style="border-bottom: 6px solid {background_color}; padding-bottom: 1px;" title="{weight:.2f}">{cleaned_token}</span>'
                 # border-bottom and background color
                 # html_span = f'<span style="border-bottom: 5px solid {background_color}; background-color: {background_color_half_opacity}; padding-bottom: 1px;" title="{weight:.2f}">{cleaned_token}</span>'
                 # border-bottom and border-top
                 html_span = f'<span style="border-bottom: 6px solid {background_color}; border-top: 5px solid {background_color}; padding-bottom: 1px; padding-top: 1px;" title="{weight:.2f}">{cleaned_token}</span>'
+                # border-bottom and border-top and background color
+                # html_span = f'<span style="border-bottom: 5px solid {background_color}; border-top: 5px solid {background_color}; background-color: {background_color_half_opacity}; padding-bottom: 1px; padding-top: 1px;" title="{weight:.2f}">{cleaned_token}</span>'
 
             token = token.replace(cleaned_token, html_span)
             sentence_html += f'{token}'

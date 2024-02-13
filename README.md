@@ -1,6 +1,6 @@
 # explanations
 
-![Screenshot of the heatmaps](readme_lime_heatmaps.png)
+![Screenshot of the heatmaps](readme_screenshot.png)
 
 Generating explanations for TACA's XGBoost ClassifierChains trained on the restaurant reviews dataset.
 
