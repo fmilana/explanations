@@ -24,7 +24,7 @@ def get_weight_range(weights):
 #     return f"{min_opacity + (1 - min_opacity) * rel_weight:.2f}"
 
 
-def get_weight_rgb(weight, weight_range):
+def get_weight_rgba(weight, weight_range):
     # normalize the weight to range [-1, 1]
     normalized_weight = weight / weight_range
     # convert the normalized weight to range [0, 1] for color mapping
@@ -32,5 +32,5 @@ def get_weight_rgb(weight, weight_range):
     # get the rgb color from the palette
     rgb_color = palette(normalized_weight)
     # convert the rgb color to a CSS color string
-    css_color = f'rgb({rgb_color[0]*100:.0f}%, {rgb_color[1]*100:.0f}%, {rgb_color[2]*100:.0f}%)'
+    css_color = f'rgba({rgb_color[0]*100:.0f}%, {rgb_color[1]*100:.0f}%, {rgb_color[2]*100:.0f}%, 1.0)'
     return css_color

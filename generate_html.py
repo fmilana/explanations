@@ -1,13 +1,13 @@
 import re
 import json
 from preprocess import get_stop_words
-from draw import get_weight_range, get_weight_rgb
+from draw import get_weight_range, get_weight_rgba
 
 
 
 def _add_style(html_path, font_family, line_height):
     with open(html_path, 'a+', encoding='utf-8') as f:
-        f.write(f'<style>\nbody {{\nfont-family: {font_family};\nline-height: {line_height};\n}}\n</style>\n')
+        f.write(f'<style>\nbody {{\nfont-family: {font_family};\n}}\nspan {{\nline-height: {line_height};\n}}\n</style>\n')
 
 
 def _add_title(title,  html_path):
@@ -48,17 +48,16 @@ def _get_sentence_html(tokens, stop_words, weights):
                 # html_span = f'<span style="background-color: #e0e0e0">{cleaned_token}</span>'
                 html_span = f'<span>{cleaned_token}</span>'
             else:
-                background_color = get_weight_rgb(weight, weight_range)
+                cleaned_token = cleaned_token.replace(' ', '&nbsp;')
+                background_color = get_weight_rgba(weight, weight_range)
+                # background_color_half_opacity = re.sub(r'1\.0\)$', '0.2)', background_color)
                 # opacity = get_weight_opacity(weight, weight_range)
                 # background color
-                # html_span = f'<span style="background-color: {background_color}; opacity: {opacity}" title="{weight}">{cleaned_token}</span>'
-                # standard underline           
-                # html_span = f'<span style="text-decoration: underline; text-decoration-color: {background_color}; text-decoration-thickness: 6px; opacity: {opacity}" title="{weight}">{cleaned_token}</span>'
-                # underline overlap fix
-                cleaned_token = cleaned_token.replace(' ', '&nbsp;')
-                # html_span = f'<span style="border-bottom: 6px solid {background_color}; opacity: {opacity}; padding-bottom: 1px;" title="{weight:.2f}">{cleaned_token}</span>'
-                html_span = f'<span style="border-bottom: 6px solid {background_color}; padding-bottom: 1px;" title="{weight:.2f}">{cleaned_token}</span>'
-
+                # html_span = f'<span style="background-color: {background_color_half_opacity}" title="{weight}">{cleaned_token}</span>'
+                # border-bottom and background color
+                # html_span = f'<span style="border-bottom: 5px solid {background_color}; background-color: {background_color_half_opacity}; padding-bottom: 1px;" title="{weight:.2f}">{cleaned_token}</span>'
+                # border-bottom and border-top
+                html_span = f'<span style="border-bottom: 6px solid {background_color}; border-top: 5px solid {background_color}; padding-bottom: 1px; padding-top: 1px;" title="{weight:.2f}">{cleaned_token}</span>'
 
             token = token.replace(cleaned_token, html_span)
             sentence_html += f'{token}'
@@ -77,7 +76,7 @@ def _generate_file(results_json, html_path):
         pass
 
     # add style
-    _add_style(html_path, font_family='Arial', line_height='2')
+    _add_style(html_path, font_family='Arial', line_height='3')
 
     for key, value in results_json.items():
         _add_title(key, html_path)
@@ -89,6 +88,10 @@ def _generate_file(results_json, html_path):
         lime_weights = [part['lime_weight'] for part in parts]
         shap_weights = [part['shap_weight'] for part in parts]
         occlusion_weights = [part['occlusion_weight'] for part in parts]
+
+        if "pappardelle" in tokens:
+            print('pappardelle found')
+            print(f'shap weights: {shap_weights}')
 
         _add_section(tokens, proba, lime_weights, shap_weights, occlusion_weights, html_path)
 
