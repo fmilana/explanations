@@ -62,7 +62,7 @@ def _create_json_entry(sentence, cleaned_sentence, proba, lime_weights, shap_wei
     }
 
 
-def _generate_file(clf, sentence_dict, json_path, optimized):
+def _generate_file(clf, intro_samples_dict, samples_dict, json_path, optimized):
     # clear json
     with open(json_path, 'w') as f:
         pass
@@ -71,19 +71,30 @@ def _generate_file(clf, sentence_dict, json_path, optimized):
 
     pipeline = CustomPipeline(steps=[('vectorizer', Sentence2Vec()), ('classifier', clf)])
 
-    class_names = list(sentence_dict.keys())
+    class_names = list(samples_dict.keys())
 
-    total_number_of_sentences = sum([len(sentence_dict[class_name]['TP Examples Tuples']) + len(sentence_dict[class_name]['FP Examples Tuples']) + len(sentence_dict[class_name]['FN Examples Tuples']) + 4 for class_name in class_names])
+    intro_class_name = class_names[0]
+
+    # add intro sentences to json
+    for i, sentence in enumerate(intro_samples_dict['original_sentence']):
+        cleaned_sentence = intro_samples_dict['cleaned_sentence'][i]
+        proba = intro_samples_dict[f'proba {intro_class_name}'][i]
+        lime_weights, shap_weights, occlusion_weights = _get_all_weights(pipeline, class_names, cleaned_sentence, intro_class_name, proba, optimized)
+        json_dict[f'{intro_class_name} Intro {i}'] = _create_json_entry(sentence, cleaned_sentence, proba, lime_weights, shap_weights, occlusion_weights)
+
+        print(f'{i+1}/3 intro sentences processed.\n', end='\r')
+
+    total_number_of_sentences = sum([len(samples_dict[class_name]['TP Examples Tuples']) + len(samples_dict[class_name]['FP Examples Tuples']) + len(samples_dict[class_name]['FN Examples Tuples']) + 4 for class_name in class_names])
     progress_counter = 0
 
     for class_name in class_names:
-        tp_examples_tuples = sentence_dict[class_name]['TP Examples Tuples']
-        fp_examples_tuples = sentence_dict[class_name]['FP Examples Tuples']
-        fn_examples_tuples = sentence_dict[class_name]['FN Examples Tuples']
-        top_positive_query_tuple = sentence_dict[class_name]['Top Positive Query Tuple']
-        q1_positive_query_tuple = sentence_dict[class_name]['Q1 Positive Query Tuple']
-        q3_negative_query_tuple = sentence_dict[class_name]['Q3 Negative Query Tuple']
-        bottom_negative_query_tuple = sentence_dict[class_name]['Bottom Negative Query Tuple']
+        tp_examples_tuples = samples_dict[class_name]['TP Examples Tuples']
+        fp_examples_tuples = samples_dict[class_name]['FP Examples Tuples']
+        fn_examples_tuples = samples_dict[class_name]['FN Examples Tuples']
+        top_positive_query_tuple = samples_dict[class_name]['Top Positive Query Tuple']
+        q1_positive_query_tuple = samples_dict[class_name]['Q1 Positive Query Tuple']
+        q3_negative_query_tuple = samples_dict[class_name]['Q3 Negative Query Tuple']
+        bottom_negative_query_tuple = samples_dict[class_name]['Bottom Negative Query Tuple']
 
         titles = ['True Positives', 'False Positives', 'False Negatives']
 
@@ -117,11 +128,13 @@ if __name__ == '__main__':
         print('Loading model...')
         clf = joblib.load('model/model.sav')
         print('Model loaded.')
+        print('Loading sampled intro sentences...')
+        intro_samples_dict = pd.read_csv('results/intro_samples.csv').to_dict(orient='list')
         print('Loading sampled sentences...')
         samples_dict = _load_samples('results/samples.csv')
         print('Sampled sentences loaded.')
         print('Generating JSON...')
-        _generate_file(clf, samples_dict, 'results/json/results.json', optimized=True)
+        _generate_file(clf, intro_samples_dict, samples_dict, 'results/json/results.json', optimized=True)
         print('JSON generated.')
     except FileNotFoundError as e:
         print('Model and/or data not found. Please run train.py and sample.py first.')
