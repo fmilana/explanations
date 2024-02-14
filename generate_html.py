@@ -80,7 +80,7 @@ def _generate_file(results_json, html_path):
         pass
 
     # add style
-    _add_style(html_path, font_family='Arial', line_height='3')
+    _add_style(html_path, font_family='Arial', line_height='2.5')
 
     for key, value in results_json.items():
         _add_title(key, html_path)
