@@ -4,10 +4,21 @@ from preprocess import get_stop_words
 from draw import get_weight_range, get_weight_rgba
 
 
-
 def _add_style(html_path, font_family, line_height):
     with open(html_path, 'a+', encoding='utf-8') as f:
-        f.write(f'<style>\nbody {{\nfont-family: {font_family};\n}}\nspan {{\nline-height: {line_height};\n}}\n</style>\n')
+        f.write(f'''
+            <style>
+            body {{
+                font-family: {font_family};
+            }}
+            .sentence {{
+                line-height: {line_height};
+            }}
+            .sentence:last-child {{
+                margin-bottom: 0;
+            }}
+            </style>
+            ''')
 
 
 def _add_title(title,  html_path):
@@ -15,20 +26,23 @@ def _add_title(title,  html_path):
         f.write(f'<h1>{title}</h1>\n')
 
 
-def _add_section(tokens, proba, lime_weights, shap_weights, occlusion_weights, html_path):
+def _add_section(tokens, proba, lime_weights, shap_weights, occlusion_weights, query, html_path):
     stop_words = get_stop_words()
 
     with open(html_path, 'a+', encoding='utf-8') as f:
         f.write(f'<h2>score: {proba:.2f}</h2>\n')
-        f.write('<h3>LIME</h3>\n')
-        f.write(_get_sentence_html(tokens, stop_words, lime_weights))
-        f.write('\n<br><br>\n')
-        f.write('<h3>SHAP</h3>\n')
-        f.write(_get_sentence_html(tokens, stop_words, shap_weights))
-        f.write('\n<br><br>\n')
-        f.write('<h3>OCCLUSION</h3>\n')
-        f.write(_get_sentence_html(tokens, stop_words, occlusion_weights))
-        f.write('\n<br><br>\n')
+        if query:
+            f.write(f'<p class="sentence">{"".join(tokens)}</p>')
+        else:
+            f.write('<h3>LIME</h3>\n')
+            f.write(_get_sentence_html(tokens, stop_words, lime_weights))
+            f.write('\n<br><br>\n')
+            f.write('<h3>SHAP</h3>\n')
+            f.write(_get_sentence_html(tokens, stop_words, shap_weights))
+            f.write('\n<br><br>\n')
+            f.write('<h3>OCCLUSION</h3>\n')
+            f.write(_get_sentence_html(tokens, stop_words, occlusion_weights))
+            f.write('\n<br><br>\n')
         
 
 def _get_sentence_html(tokens, stop_words, weights):
@@ -36,7 +50,7 @@ def _get_sentence_html(tokens, stop_words, weights):
 
     weight_range = get_weight_range(weights)
 
-    sentence_html = ''
+    sentence_html = '<p class="sentence">'
 
     for token in tokens:
         cleaned_token = re.sub(r'\W', '', token)
@@ -71,6 +85,8 @@ def _get_sentence_html(tokens, stop_words, weights):
         
         weight_index += 1
 
+    sentence_html += '</p>'
+
     return sentence_html
 
 
@@ -80,7 +96,7 @@ def _generate_file(results_json, html_path):
         pass
 
     # add style
-    _add_style(html_path, font_family='Arial', line_height='2.5')
+    _add_style(html_path, font_family='Arial', line_height=2.5)
 
     for key, value in results_json.items():
         _add_title(key, html_path)
@@ -93,7 +109,9 @@ def _generate_file(results_json, html_path):
         shap_weights = [part['shap_weight'] for part in parts]
         occlusion_weights = [part['occlusion_weight'] for part in parts]
 
-        _add_section(tokens, proba, lime_weights, shap_weights, occlusion_weights, html_path)
+        query = key.endswith('Query')
+
+        _add_section(tokens, proba, lime_weights, shap_weights, occlusion_weights, query, html_path)
 
 
 if __name__ == '__main__':

@@ -78,9 +78,9 @@ def _generate_samples_csv(probas_df, scores_df):
         fn_examples_tuples = list(zip(fn_q3_examples_df['original_sentence'], fn_q3_examples_df['cleaned_sentence'], fn_q3_examples_df[f'proba {class_name}'])) + list(zip(fn_bottom_examples_df['original_sentence'], fn_bottom_examples_df['cleaned_sentence'], fn_bottom_examples_df[f'proba {class_name}']))
         
         # shuffle lists
-        # random.shuffle(tp_examples_tuples)
-        # random.shuffle(fp_examples_tuples)
-        # random.shuffle(fn_examples_tuples)
+        random.shuffle(tp_examples_tuples)
+        random.shuffle(fp_examples_tuples)
+        random.shuffle(fn_examples_tuples)
 
         samples_dict[class_name] = {
             'TP Examples Tuples': tp_examples_tuples,
