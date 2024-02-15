@@ -6,7 +6,7 @@ from draw import get_weight_range, get_weight_rgba
 
 def _add_style(html_path, font_family, line_height):
     with open(html_path, 'a+', encoding='utf-8') as f:
-        f.write(f'<style> body {{font-family: {font_family};}}.sentence {{text-align: center; line-height: {line_height};}}.sentence:last-child {{margin-bottom: 0;}}</style>')
+        f.write(f'<style> body {{font-family: {font_family};}}.sentence {{color: black; text-align: center; line-height: {line_height};}}.sentence:last-child {{margin-bottom: 0;}}</style>')
 
 
 def _add_title(title,  html_path):
