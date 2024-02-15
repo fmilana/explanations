@@ -21,7 +21,10 @@ def _add_section(tokens, proba, lime_weights, shap_weights, occlusion_weights, q
         f.write(f'<h2>score: {proba:.2f}</h2>\n')
         if query:
             f.write(f'<p class="sentence">{"".join(tokens)}</p>')
+            f.write('\n<br><br>\n')
         else:
+            f.write('<h3>ORIGINAL</h3>\n')
+            f.write(f'<p class="sentence">{"".join(tokens)}</p>')
             f.write('<h3>LIME</h3>\n')
             f.write(_get_sentence_html(tokens, stop_words, lime_weights))
             f.write('\n<br><br>\n')
