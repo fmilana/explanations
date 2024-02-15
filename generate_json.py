@@ -11,9 +11,7 @@ from vectorizer import Sentence2Vec
 from custom_pipeline import CustomPipeline
 
 
-def _load_samples(samples_csv_path):
-    # read csv into a DataFrame
-    samples_df = pd.read_csv(samples_csv_path, index_col=0)
+def _load_samples_as_dict(samples_df):
     # define rows that contain lists of tuples
     list_of_tuples_rows = ['TP Examples Tuples', 'FP Examples Tuples', 'FN Examples Tuples']
     # define rows that contain single tuples
@@ -30,8 +28,8 @@ def _load_samples(samples_csv_path):
     return samples_dict
 
 
-def _get_all_weights(pipeline, class_names, sentence, class_name, proba, optimized):
-    lime_bias, lime_weights = get_lime_weights(pipeline, class_names, sentence, class_name, optimized=optimized)
+def _get_all_weights(pipeline, class_names, sentence, class_name, proba, lime_optimized):
+    lime_bias, lime_weights = get_lime_weights(pipeline, class_names, sentence, class_name, lime_optimized=lime_optimized)
     shap_weights = get_shap_weights(pipeline, class_names, sentence, class_name)
     occlusion_weights = get_occlusion_weights(pipeline, class_names, sentence, class_name, proba)
     return lime_weights, shap_weights, occlusion_weights
@@ -62,10 +60,12 @@ def _create_json_entry(sentence, cleaned_sentence, proba, lime_weights, shap_wei
     }
 
 
-def _generate_file(clf, intro_samples_dict, samples_dict, json_path, optimized):
+def _generate_file(clf, intro_samples_df, samples_df, json_path, lime_optimized):
     # clear json
     with open(json_path, 'w') as f:
         pass
+
+    samples_dict = _load_samples_as_dict(samples_df)
 
     json_dict = {}
 
@@ -76,13 +76,14 @@ def _generate_file(clf, intro_samples_dict, samples_dict, json_path, optimized):
     intro_class_name = class_names[0]
 
     # add intro sentences to json
-    for i, sentence in enumerate(intro_samples_dict['original_sentence']):
-        cleaned_sentence = intro_samples_dict['cleaned_sentence'][i]
-        proba = intro_samples_dict[f'proba {intro_class_name}'][i]
-        lime_weights, shap_weights, occlusion_weights = _get_all_weights(pipeline, class_names, cleaned_sentence, intro_class_name, proba, optimized)
+    for i, sentence in enumerate(intro_samples_df['original_sentence']):
+        cleaned_sentence = intro_samples_df['cleaned_sentence'][i]
+        proba = intro_samples_df[f'proba {intro_class_name}'][i]
+        lime_weights, shap_weights, occlusion_weights = _get_all_weights(pipeline, class_names, cleaned_sentence, intro_class_name, proba, lime_optimized)
         json_dict[f'{intro_class_name} Intro {i}'] = _create_json_entry(sentence, cleaned_sentence, proba, lime_weights, shap_weights, occlusion_weights)
 
-        print(f'{i+1}/3 intro sentences processed.\n', end='\r')
+        print(f'{i+1}/{len(intro_samples_df["original_sentence"])} intro sentences processed.')
+
 
     total_number_of_sentences = sum([len(samples_dict[class_name]['TP Examples Tuples']) + len(samples_dict[class_name]['FP Examples Tuples']) + len(samples_dict[class_name]['FN Examples Tuples']) + 4 for class_name in class_names])
     progress_counter = 0
@@ -100,7 +101,7 @@ def _generate_file(clf, intro_samples_dict, samples_dict, json_path, optimized):
 
         for i, list_of_tuples in enumerate([tp_examples_tuples, fp_examples_tuples, fn_examples_tuples]):
             for j, (sentence, cleaned_sentence, proba) in enumerate(list_of_tuples):
-                lime_weights, shap_weights, occlusion_weights = _get_all_weights(pipeline, class_names, cleaned_sentence, class_name, proba, optimized)
+                lime_weights, shap_weights, occlusion_weights = _get_all_weights(pipeline, class_names, cleaned_sentence, class_name, proba, lime_optimized)
                 json_dict[f'{class_name} {titles[i]} {j}'] = _create_json_entry(sentence, cleaned_sentence, proba, lime_weights, shap_weights, occlusion_weights)
 
                 print(f'{progress_counter+1}/{total_number_of_sentences} sentences processed.', end='\r')
@@ -109,7 +110,7 @@ def _generate_file(clf, intro_samples_dict, samples_dict, json_path, optimized):
         titles = ['Top Positive', 'Q1 Positive', 'Q3 Negative', 'Bottom Negative']
 
         for i, (sentence, cleaned_sentence, proba) in enumerate([top_positive_query_tuple, q1_positive_query_tuple, q3_negative_query_tuple, bottom_negative_query_tuple]):
-            lime_weights, shap_weights, occlusion_weights = _get_all_weights(pipeline, class_names, cleaned_sentence, class_name, proba, optimized)
+            lime_weights, shap_weights, occlusion_weights = _get_all_weights(pipeline, class_names, cleaned_sentence, class_name, proba, lime_optimized)
             json_dict[f'{class_name} {titles[i]} Query'] = _create_json_entry(sentence, cleaned_sentence, proba, lime_weights, shap_weights, occlusion_weights)
 
             print(f'{progress_counter+1}/{total_number_of_sentences} sentences processed.', end='\r')
@@ -121,20 +122,14 @@ def _generate_file(clf, intro_samples_dict, samples_dict, json_path, optimized):
 
 if __name__ == '__main__':
     try:
-        print('Loading data...')
         probas_df = pd.read_csv('results/probas.csv')
         scores_df = pd.read_csv('results/scores.csv')
-        print('Data loaded.')
-        print('Loading model...')
         clf = joblib.load('model/model.sav')
-        print('Model loaded.')
-        print('Loading sampled intro sentences...')
-        intro_samples_dict = pd.read_csv('results/intro_samples.csv').to_dict(orient='list')
-        print('Loading sampled sentences...')
-        samples_dict = _load_samples('results/samples.csv')
-        print('Sampled sentences loaded.')
+        intro_samples_df = pd.read_csv('results/intro_samples.csv', index_col=0)
+        # samples_dict = _load_samples('results/samples.csv')
+        sampled_df = pd.read_csv('results/samples.csv', index_col=0)
         print('Generating JSON...')
-        _generate_file(clf, intro_samples_dict, samples_dict, 'results/json/results.json', optimized=True)
+        _generate_file(clf, intro_samples_df, sampled_df, 'results/json/results.json', lime_optimized=True)
         print('JSON generated.')
     except FileNotFoundError as e:
         print('Model and/or data not found. Please run train.py and sample.py first.')

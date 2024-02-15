@@ -104,9 +104,7 @@ def _generate_file(results_json, html_path):
 
 if __name__ == '__main__':
     try:
-        print('Loading JSON...')
         results_json = json.load(open('results/json/results.json', 'r', encoding='utf-8'))
-        print('JSON loaded.')
         print('Generating HTML...')
         _generate_file(results_json, 'results/html/results.html')
         print('HTML generated.')

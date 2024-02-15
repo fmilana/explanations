@@ -249,13 +249,11 @@ def _train_and_validate(df):
 
 if __name__ == '__main__':
     try:
-        print('Loading train.csv...')
         df = pd.read_csv('data/train.csv')
-        print('train.csv loaded.')
         print('Training and validating model...')
         clf = _train_and_validate(df)
         # save the model to disk
         joblib.dump(clf, 'model/model.sav')
-        print('Saved model to disk.')
+        print('Done. Model saved in model/model.sav.')
     except FileNotFoundError as e:
         print('data/train.csv not found.')

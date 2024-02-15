@@ -16,8 +16,8 @@ def _default_clf():
     return SGDClassifier(**kwargs)
 
 
-def _run_lime(pipeline, categories, sentence, optimized):
-    if optimized:
+def _run_lime(pipeline, categories, sentence, lime_optimized):
+    if lime_optimized:
         n_samples_list = [300, 1000, 2000, 3000, 4000, 5000]
     else:
         n_samples_list = [2000]
@@ -51,8 +51,8 @@ def _run_lime(pipeline, categories, sentence, optimized):
     return best_dict
 
 
-def get_lime_weights(pipeline, class_names, sentence, class_name, optimized):
-    lime_dict = _run_lime(pipeline, class_names, sentence, optimized)
+def get_lime_weights(pipeline, class_names, sentence, class_name, lime_optimized):
+    lime_dict = _run_lime(pipeline, class_names, sentence, lime_optimized)
 
     target = lime_dict['targets'][class_names.index(class_name)]
     positive_weight_tuples = [(entry['feature'], entry['weight']) for entry in target['feature_weights']['pos']]
