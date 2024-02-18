@@ -110,28 +110,40 @@ def _generate_samples_csvs(probas_df, scores_df):
         true_positive_df = probas_df[(probas_df[class_name] == 1) & (probas_df[f'pred {class_name}'] == 1)]
         # sample 4 examples from top true positives (at random among top 10 true positives)
         tp_top_examples_df = true_positive_df.nlargest(10, f'proba {class_name}').sample(n=4)
+        # remove sampled queries from probas_df
+        probas_df = probas_df.drop(tp_top_examples_df.index)
+        # get true positive dfs again
+        true_positive_df = probas_df[(probas_df[class_name] == 1) & (probas_df[f'pred {class_name}'] == 1)]
         # sample 4 examples from around q1 positives (closest to q1 positive)
         tp_q1_examples_df = true_positive_df.loc[(true_positive_df[f'proba {class_name}'] - q1_score_positive).abs().nsmallest(4).index]
         # remove sampled queries from probas_df
-        probas_df = probas_df.drop(tp_top_examples_df.index)
+        probas_df = probas_df.drop(tp_q1_examples_df.index)
 
         # get false positive df
         false_positive_df = probas_df[(probas_df[class_name] == 0) & (probas_df[f'pred {class_name}'] == 1)]
         # sample 2 examples from top false positives (at random among top 10 false positives)
         fp_top_examples_df = false_positive_df.nlargest(10, f'proba {class_name}').sample(n=2)
+        # remove sampled queries from probas_df
+        probas_df = probas_df.drop(fp_top_examples_df.index)
+        # get false positive df again
+        false_positive_df = probas_df[(probas_df[class_name] == 0) & (probas_df[f'pred {class_name}'] == 1)]
         # sample 2 examples from around q1 false positives (closest to q1 positive)
         fp_q1_examples_df = false_positive_df.loc[(false_positive_df[f'proba {class_name}'] - q1_score_positive).abs().nsmallest(2).index]
         # remove sampled queries from probas_df
-        probas_df = probas_df.drop(fp_top_examples_df.index)
+        probas_df = probas_df.drop(fp_q1_examples_df.index)
 
         # get false negative df
         false_negative_df = probas_df[(probas_df[class_name] == 1) & (probas_df[f'pred {class_name}'] == 0)]
         # sample 2 examples from around q3 false negatives (closest to q3 negative)
         fn_q3_examples_df = false_negative_df.loc[(false_negative_df[f'proba {class_name}'] - q3_score_negative).abs().nsmallest(2).index]
+        # remove sampled queries from probas_df
+        probas_df = probas_df.drop(fn_q3_examples_df.index)
+        # get false negative df again
+        false_negative_df = probas_df[(probas_df[class_name] == 1) & (probas_df[f'pred {class_name}'] == 0)]
         # sample 2 examples from bottom false negatives
         fn_bottom_examples_df = false_negative_df.nsmallest(10, f'proba {class_name}').sample(n=2)
         # remove sampled queries from probas_df
-        probas_df = probas_df.drop(fn_q3_examples_df.index)
+        probas_df = probas_df.drop(fn_bottom_examples_df.index)
         
         # create list of tuples (sentences, proba)
         tp_examples_tuples = list(zip(tp_top_examples_df['original_sentence'], tp_top_examples_df['cleaned_sentence'], tp_top_examples_df[f'proba {class_name}'])) + list(zip(tp_q1_examples_df['original_sentence'], tp_q1_examples_df['cleaned_sentence'], tp_q1_examples_df[f'proba {class_name}']))
