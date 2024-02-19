@@ -6,7 +6,7 @@ from draw import get_weight_range, get_weight_rgba
 
 def _add_style(html_path, font_family, line_height):
     with open(html_path, 'a+', encoding='utf-8') as f:
-        f.write(f'<style> body {{font-family: {font_family}; text-align: center;}}.sentence {{line-height: {line_height};}}</style>')
+        f.write(f'<style> body {{font-family: {font_family}; text-align: center;}}.sentence {{line-height: {line_height};}}</style>\n')
 
 
 def _add_title(title,  html_path):
@@ -25,6 +25,7 @@ def _add_section(tokens, proba, lime_weights, shap_weights, occlusion_weights, q
         else:
             f.write('<h3>ORIGINAL</h3>\n')
             f.write(f'<p class="sentence">{"".join(tokens)}</p>')
+            f.write('\n<br><br>\n')
             f.write('<h3>LIME</h3>\n')
             f.write(_get_sentence_html(tokens, stop_words, lime_weights))
             f.write('\n<br><br>\n')
