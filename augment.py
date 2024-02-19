@@ -113,7 +113,7 @@ def _MLSMOTE(X, y, n_sample):
     return new_X, target
 
 
-# function called from outside
+# function called from train.py
 def oversample(X, Y):
     X_shape_old = X.shape
     class_dist = [y/Y.shape[0] for y in Y.sum(axis=0)]
@@ -137,3 +137,4 @@ def oversample(X, Y):
     else:
         print('no minority classes.')
     return X, Y
+    

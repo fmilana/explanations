@@ -13,7 +13,7 @@ def _generate_samples_csvs(probas_df, scores_df):
 
     samples_dict = {}
 
-    for i, class_name in enumerate(class_names):
+    for class_name in class_names:
         q1_score_positive = scores_df.loc['Q1 positive', class_name]
         q3_score_negative = scores_df.loc['Q3 negative', class_name]
 
@@ -47,8 +47,10 @@ def _generate_samples_csvs(probas_df, scores_df):
 
         # get true positive dfs
         true_positive_df = probas_df[(probas_df[class_name] == 1) & (probas_df[f'pred {class_name}'] == 1)]
+
+        n_samples_tp = min(4, len(true_positive_df))
         # sample 4 examples from top true positives (at random among top 10 true positives)
-        tp_top_examples_df = true_positive_df.nlargest(10, f'proba {class_name}').sample(n=4)
+        tp_top_examples_df = true_positive_df.nlargest(10, f'proba {class_name}').sample(n=n_samples_tp)
         # remove sampled queries from probas_df
         probas_df = probas_df.drop(tp_top_examples_df.index)
         # get true positive dfs again
@@ -60,8 +62,10 @@ def _generate_samples_csvs(probas_df, scores_df):
 
         # get false positive df
         false_positive_df = probas_df[(probas_df[class_name] == 0) & (probas_df[f'pred {class_name}'] == 1)]
+
+        n_samples_fp = min(2, len(false_positive_df))
         # sample 2 examples from top false positives (at random among top 10 false positives)
-        fp_top_examples_df = false_positive_df.nlargest(10, f'proba {class_name}').sample(n=2)
+        fp_top_examples_df = false_positive_df.nlargest(10, f'proba {class_name}').sample(n=n_samples_fp)
         # remove sampled queries from probas_df
         probas_df = probas_df.drop(fp_top_examples_df.index)
         # get false positive df again
@@ -79,8 +83,10 @@ def _generate_samples_csvs(probas_df, scores_df):
         probas_df = probas_df.drop(fn_q3_examples_df.index)
         # get false negative df again
         false_negative_df = probas_df[(probas_df[class_name] == 1) & (probas_df[f'pred {class_name}'] == 0)]
+
+        n_samples_fn = min(2, len(false_negative_df))
         # sample 2 examples from bottom false negatives
-        fn_bottom_examples_df = false_negative_df.nsmallest(10, f'proba {class_name}').sample(n=2)
+        fn_bottom_examples_df = false_negative_df.nsmallest(10, f'proba {class_name}').sample(n=n_samples_fn)
         # remove sampled queries from probas_df
         probas_df = probas_df.drop(fn_bottom_examples_df.index)
         

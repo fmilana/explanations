@@ -104,7 +104,7 @@ def _generate_scores_csv(class_names, test_df, average_best_thresholds_per_class
         scores_df.loc['mean negative', class_name] = scores_dict[class_name]['mean negative']
                                                                         
     scores_df.to_csv('results/scores.csv')
-    
+
 
 def _train_and_validate(df):
     # remove rows with null values in cleaned_sentence
@@ -151,7 +151,7 @@ def _train_and_validate(df):
         # prepare training data
         X_train = np.array(train_df['sentence_embedding'].tolist())
         Y_train = np.array(train_df.iloc[:, 7:])
-        # oversample minority classes (if present)
+        # # oversample minority classes (if present)
         X_train, Y_train = oversample(X_train, Y_train)
         # prepare validation data
         X_validation = np.array(validation_df['sentence_embedding'].tolist())
