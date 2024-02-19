@@ -60,7 +60,7 @@ def _create_json_entry(sentence, cleaned_sentence, proba, lime_weights, shap_wei
     }
 
 
-def _generate_file(clf, intro_samples_df, samples_df, json_path, lime_optimized):
+def _generate_file(clf, samples_df, json_path, lime_optimized):
     # clear json
     with open(json_path, 'w') as f:
         pass
@@ -72,18 +72,6 @@ def _generate_file(clf, intro_samples_df, samples_df, json_path, lime_optimized)
     pipeline = CustomPipeline(steps=[('vectorizer', Sentence2Vec()), ('classifier', clf)])
 
     class_names = list(samples_dict.keys())
-
-    intro_class_name = class_names[0]
-
-    # add intro sentences to json
-    for i, sentence in enumerate(intro_samples_df['original_sentence']):
-        cleaned_sentence = intro_samples_df['cleaned_sentence'][i]
-        proba = intro_samples_df[f'proba {intro_class_name}'][i]
-        lime_weights, shap_weights, occlusion_weights = _get_all_weights(pipeline, class_names, cleaned_sentence, intro_class_name, proba, lime_optimized)
-        json_dict[f'{intro_class_name} Intro {i}'] = _create_json_entry(sentence, cleaned_sentence, proba, lime_weights, shap_weights, occlusion_weights)
-
-        print(f'{i+1}/{len(intro_samples_df["original_sentence"])} intro sentences processed.')
-
 
     total_number_of_sentences = sum([len(samples_dict[class_name]['TP Examples Tuples']) + len(samples_dict[class_name]['FP Examples Tuples']) + len(samples_dict[class_name]['FN Examples Tuples']) + 4 for class_name in class_names])
     progress_counter = 0
@@ -125,11 +113,9 @@ if __name__ == '__main__':
         probas_df = pd.read_csv('results/probas.csv')
         scores_df = pd.read_csv('results/scores.csv')
         clf = joblib.load('model/model.sav')
-        intro_samples_df = pd.read_csv('results/intro_samples.csv', index_col=0)
-        # samples_dict = _load_samples('results/samples.csv')
         sampled_df = pd.read_csv('results/samples.csv', index_col=0)
         print('Generating JSON...')
-        _generate_file(clf, intro_samples_df, sampled_df, 'results/json/results.json', lime_optimized=True)
+        _generate_file(clf, sampled_df, 'results/json/results.json', lime_optimized=True)
         print('JSON generated.')
     except FileNotFoundError as e:
         print('Model and/or data not found. Please run train.py and sample.py first.')

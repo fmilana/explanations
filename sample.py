@@ -2,61 +2,6 @@ import random
 import pandas as pd
 
 
-# sample 6 sentences for study introduction (so we pick 3)
-def _sample_intro_sentences(probas_df, class_name, q1_score_positive, q3_score_negative):
-    class_names = [class_name for class_name in probas_df.columns[7:].tolist() if not (class_name.startswith('pred') or class_name.startswith('proba'))]
-    # sample first and third sentences (2 each)
-    true_positive_df = probas_df[(probas_df[class_name] == 1) & (probas_df[f'pred {class_name}'] == 1)]
-    tp_q1_examples_df = true_positive_df.loc[(true_positive_df[f'proba {class_name}'] - q1_score_positive).abs().nsmallest(4).index]
-
-    first_intro_samples = []
-    second_intro_samples = []
-    third_intro_samples = []
-
-    # sample first sentences
-    for i in range(2):
-        first_intro_samples.append({
-            'sample_id': f'first_samples_{i}',
-            'original_sentence': tp_q1_examples_df['original_sentence'].values[i],
-            'cleaned_sentence': tp_q1_examples_df['cleaned_sentence'].values[i],
-            **{f'proba {class_name}': tp_q1_examples_df[f'proba {class_name}'].values[i] for class_name in class_names}
-        })
-
-    # sample third sentences
-    for i in range(2, 4):
-        third_intro_samples.append({
-            'sample_id': f'third_samples_{i}',
-            'original_sentence': tp_q1_examples_df['original_sentence'].values[i],
-            'cleaned_sentence': tp_q1_examples_df['cleaned_sentence'].values[i],
-            **{f'proba {class_name}': tp_q1_examples_df[f'proba {class_name}'].values[i] for class_name in class_names}
-        })
-
-    probas_df = probas_df.drop(tp_q1_examples_df.index)
-
-    # sample second sentence
-    false_negative_df = probas_df[(probas_df[class_name] == 1) & (probas_df[f'pred {class_name}'] == 0)]
-    pred_columns = [col for col in false_negative_df.columns if col.startswith('pred ')]
-    # create a boolean mask that is true for rows where exactly one 'pred' column is 1
-    mask = (false_negative_df[pred_columns].sum(axis=1) == 1)
-    sub_df = false_negative_df[mask]
-    second_intro_sample_df = sub_df.loc[(sub_df[f'proba {class_name}'] - q3_score_negative).abs().nsmallest(2).index]
-    
-    # sample second sentences
-    for i in range(2):
-        second_intro_samples.append({
-            'sample_id': f'second_samples_{i}',
-            'original_sentence': second_intro_sample_df['original_sentence'].values[i],
-            'cleaned_sentence': second_intro_sample_df['cleaned_sentence'].values[i],
-            **{f'proba {class_name}': second_intro_sample_df[f'proba {class_name}'].values[i] for class_name in class_names}
-        })
-
-    probas_df = probas_df.drop(second_intro_sample_df.index)
-
-    intro_samples = first_intro_samples + second_intro_samples + third_intro_samples
-
-    return intro_samples, probas_df
-
-
 def _generate_samples_csvs(probas_df, scores_df):
     # remove sentences from probas_df with less than 5 words (when cleaned)
     probas_df = probas_df[probas_df['cleaned_sentence'].apply(lambda x: len(x.split()) >= 5)]
@@ -66,17 +11,11 @@ def _generate_samples_csvs(probas_df, scores_df):
 
     class_names = [class_name for class_name in probas_df.columns[7:].tolist() if not (class_name.startswith('pred') or class_name.startswith('proba'))]
 
-    intro_samples = []
-
     samples_dict = {}
 
     for i, class_name in enumerate(class_names):
         q1_score_positive = scores_df.loc['Q1 positive', class_name]
         q3_score_negative = scores_df.loc['Q3 negative', class_name]
-
-        # sample sentences for study intro
-        if i == 0:
-            intro_samples, probas_df = _sample_intro_sentences(probas_df, class_name, q1_score_positive, q3_score_negative)
 
         # queries
 
@@ -164,10 +103,6 @@ def _generate_samples_csvs(probas_df, scores_df):
             'Q3 Negative Query Tuple': q3_negative_query_tuple,
             'Bottom Negative Query Tuple': bottom_negative_query_tuple
         }
-
-    # save intro samples to csv    
-    intro_df = pd.DataFrame(intro_samples)
-    intro_df.to_csv('results/intro_samples.csv', index=False)
     
     # save study samples to csv
     samples_df = pd.DataFrame(samples_dict)
@@ -180,6 +115,6 @@ if __name__ == '__main__':
         scores_df = pd.read_csv('results/scores.csv')
         print('Sampling sentences...')
         _generate_samples_csvs(probas_df, scores_df)
-        print('Sentences sampled and stored in results/intro_samples.csv and results/samples.csv.')
+        print('Samples saved to results/samples.csv')
     except FileNotFoundError as e:
         print('results/probas.csv and/or results/scores.csv not found. Please run train.py first')
