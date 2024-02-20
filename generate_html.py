@@ -6,7 +6,7 @@ from draw import get_weight_range, get_weight_rgba
 
 def _add_style(html_path, font_family, line_height):
     with open(html_path, 'a+', encoding='utf-8') as f:
-        f.write(f'<style> body {{font-family: {font_family}; text-align: center;}}.sentence {{line-height: {line_height};}}</style>\n')
+        f.write(f'<style> body {{font-family: {font_family}; text-align: center;}} .sentence {{text-align: center; line-height: {line_height};}}</style>\n')
 
 
 def _add_title(title,  html_path):
@@ -20,11 +20,11 @@ def _add_section(tokens, proba, lime_weights, shap_weights, occlusion_weights, q
     with open(html_path, 'a+', encoding='utf-8') as f:
         f.write(f'<h2>score: {proba:.2f}</h2>\n')
         if query:
-            f.write(f'<p class="sentence">{"".join(tokens)}</p>')
+            f.write(f'<p class="sentence">"{"".join(tokens)}"</p>')
             f.write('\n<br><br>\n')
         else:
             f.write('<h3>ORIGINAL</h3>\n')
-            f.write(f'<p class="sentence">{"".join(tokens)}</p>')
+            f.write(f'<p class="sentence">"{"".join(tokens)}"</p>')
             f.write('\n<br><br>\n')
             f.write('<h3>LIME</h3>\n')
             f.write(_get_sentence_html(tokens, stop_words, lime_weights))
@@ -42,42 +42,34 @@ def _get_sentence_html(tokens, stop_words, weights):
 
     weight_range = get_weight_range(weights)
 
-    sentence_html = '<p class="sentence">'
+    sentence_html = '<p class="sentence">"'
 
     for token in tokens:
-        cleaned_token = re.sub(r'\W', '', token)
+        # only clean if token is a word
+        if re.search(r'\w', token):
+            cleaned_token = re.sub(r'\W', '', token)
+        else:
+            cleaned_token = token
 
         try:
             weight = weights[weight_index]
-        
-            if cleaned_token.lower() in stop_words or weight == 0.0:
-                # html_span = f'<span style="background-color: #e0e0e0">{cleaned_token}</span>'
-                html_span = f'<span>{cleaned_token}</span>'
-            else:
+
+            if weight != 0.0:
                 cleaned_token = cleaned_token.replace(' ', '&nbsp;')
                 border_bottom_color = get_weight_rgba(weight, weight_range)
                 background_color = re.sub(r'1\.0\)$', '0.2)', border_bottom_color)
-                # opacity = get_weight_opacity(weight, weight_range)
-                # background color
-                # html_span = f'<span style="background-color: {background_color_half_opacity}" title="{weight}">{cleaned_token}</span>'
-                # border-bottom
-                # html_span = f'<span style="border-bottom: 6px solid {background_color}; padding-bottom: 1px;" title="{weight:.2f}">{cleaned_token}</span>'
-                # border-bottom and background color
                 html_span = f'<span style="border-bottom: 5px solid {border_bottom_color}; background-color: {background_color}; padding-bottom: 1px;">{cleaned_token}</span>'
-                # border-bottom and border-top
-                # html_span = f'<span style="border-bottom: 6px solid {background_color}; border-top: 5px solid {background_color}; padding-bottom: 1px; padding-top: 1px;" title="{weight:.2f}">{cleaned_token}</span>'
-                # border-bottom and border-top and background color
-                # html_span = f'<span style="border-bottom: 5px solid {background_color}; border-top: 5px solid {background_color}; background-color: {background_color_half_opacity}; padding-bottom: 1px; padding-top: 1px;" title="{weight:.2f}">{cleaned_token}</span>'
-
-            token = token.replace(cleaned_token, html_span)
-            sentence_html += f'{token}'
+                token = token.replace(cleaned_token, html_span)
+                sentence_html += f'{token}'
+            else:
+                sentence_html += f'{token}'
+        
         except (IndexError, ZeroDivisionError):
-            token = token.replace(cleaned_token, f'<span>{cleaned_token}</span>')
             sentence_html += f'{token}'
         
         weight_index += 1
 
-    sentence_html += '</p>'
+    sentence_html += '"</p>'
 
     return sentence_html
 
@@ -88,7 +80,7 @@ def _generate_file(results_json, html_path):
         pass
 
     # add style
-    _add_style(html_path, font_family='Arial', line_height=2.5)
+    _add_style(html_path, font_family='arial', line_height=2.5)
 
     for key, value in results_json.items():
         _add_title(key, html_path)
