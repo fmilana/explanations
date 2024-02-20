@@ -1,4 +1,5 @@
 import ast
+import random
 import re
 import json
 import pandas as pd
@@ -96,10 +97,14 @@ def _generate_file(clf, samples_df, json_path, lime_optimized):
                 progress_counter += 1
 
         titles = ['Top Positive', 'Q1 Positive', 'Q3 Negative', 'Bottom Negative']
+        tuples_list = [top_positive_query_tuple, q1_positive_query_tuple, q3_negative_query_tuple, bottom_negative_query_tuple]
+        zipped_list = list(zip(titles, tuples_list))
+        # shuffle queries
+        random.shuffle(zipped_list)
 
-        for i, (sentence, cleaned_sentence, proba) in enumerate([top_positive_query_tuple, q1_positive_query_tuple, q3_negative_query_tuple, bottom_negative_query_tuple]):
+        for (title, (sentence, cleaned_sentence, proba)) in zipped_list:
             lime_weights, shap_weights, occlusion_weights = _get_all_weights(pipeline, class_names, cleaned_sentence, class_name, proba, lime_optimized)
-            json_dict[f'{class_name} {titles[i]} Query'] = _create_json_entry(sentence, cleaned_sentence, proba, lime_weights, shap_weights, occlusion_weights)
+            json_dict[f'{class_name} {title} Query'] = _create_json_entry(sentence, cleaned_sentence, proba, lime_weights, shap_weights, occlusion_weights)
 
             print(f'{progress_counter+1}/{total_number_of_sentences} sentences processed.', end='\r')
             progress_counter += 1
