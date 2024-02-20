@@ -1,12 +1,11 @@
 import re
 import json
-from preprocess import get_stop_words
 from draw import get_weight_range, get_weight_rgba
 
 
 def _add_style(html_path, font_family, line_height):
     with open(html_path, 'a+', encoding='utf-8') as f:
-        f.write(f'<style> body {{font-family: {font_family}; text-align: center;}} .sentence {{text-align: center; line-height: {line_height};}}</style>\n')
+        f.write(f'<style> body {{font-family: {font_family}; text-align: center;}}</style>\n')
 
 
 def _add_title(title,  html_path):
@@ -15,34 +14,32 @@ def _add_title(title,  html_path):
 
 
 def _add_section(tokens, proba, lime_weights, shap_weights, occlusion_weights, query, html_path):
-    stop_words = get_stop_words()
-
     with open(html_path, 'a+', encoding='utf-8') as f:
         f.write(f'<h2>score: {proba:.2f}</h2>\n')
         if query:
-            f.write(f'<p class="sentence">"{"".join(tokens)}"</p>')
+            f.write(f'<p style="color: black; font-family: Arial; text-align: center; line-height: 2.5;">"{"".join(tokens)}"</p>')
             f.write('\n<br><br>\n')
         else:
             f.write('<h3>ORIGINAL</h3>\n')
-            f.write(f'<p class="sentence">"{"".join(tokens)}"</p>')
+            f.write(f'<p style="color: black; font-family: Arial; text-align: center; line-height: 2.5;">"{"".join(tokens)}"</p>')
             f.write('\n<br><br>\n')
             f.write('<h3>LIME</h3>\n')
-            f.write(_get_sentence_html(tokens, stop_words, lime_weights))
+            f.write(_get_sentence_html(tokens, lime_weights))
             f.write('\n<br><br>\n')
             f.write('<h3>SHAP</h3>\n')
-            f.write(_get_sentence_html(tokens, stop_words, shap_weights))
+            f.write(_get_sentence_html(tokens, shap_weights))
             f.write('\n<br><br>\n')
             f.write('<h3>OCCLUSION</h3>\n')
-            f.write(_get_sentence_html(tokens, stop_words, occlusion_weights))
+            f.write(_get_sentence_html(tokens, occlusion_weights))
             f.write('\n<br><br>\n')
         
 
-def _get_sentence_html(tokens, stop_words, weights):
+def _get_sentence_html(tokens, weights):
     weight_index = 0
 
     weight_range = get_weight_range(weights)
 
-    sentence_html = '<p class="sentence">"'
+    sentence_html = '<p style="color: black; font-family: Arial; text-align: center; line-height: 2.5;">"'
 
     for token in tokens:
         # only clean if token is a word
