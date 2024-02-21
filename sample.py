@@ -15,7 +15,10 @@ def _generate_samples_csvs(probas_df, scores_df):
 
     probas_df_copy = probas_df.copy()
 
-    while True:
+    counter = 0
+
+    # keep sampling until we have valid samples (or until 100 tries)
+    while counter < 100:
         valid_sampling = True
 
         for class_name in class_names:
@@ -116,14 +119,20 @@ def _generate_samples_csvs(probas_df, scores_df):
         if valid_sampling:
             print('Valid sampling. Done!')
             break
-        else:
-            # reset probas_df
-            probas_df = probas_df_copy.copy()
-            print('Invalid sampling. Trying again...')
+        
+        # reset probas_df
+        probas_df = probas_df_copy.copy()
+        print('Invalid sampling. Trying again...')
+        counter += 1
+
+    if counter == 100:
+        print('Could not sample valid examples. Please run train.py again.')
+        return
     
     # save study samples to csv
     samples_df = pd.DataFrame(samples_dict)
     samples_df.to_csv('results/samples.csv')
+    print('Samples saved to results/samples.csv')
 
 
 if __name__ == '__main__':
@@ -132,6 +141,5 @@ if __name__ == '__main__':
         scores_df = pd.read_csv('results/scores.csv')
         print('Sampling sentences...')
         _generate_samples_csvs(probas_df, scores_df)
-        print('Samples saved to results/samples.csv')
     except FileNotFoundError as e:
         print('results/probas.csv and/or results/scores.csv not found. Please run train.py first')
