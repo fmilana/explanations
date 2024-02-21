@@ -28,10 +28,10 @@ def _generate_cm_csv(test_df, class_names, Y_pred, Y_true):
         # get maximum number of sentences in any category
         max_len = max(num_tp_sentences, num_fp_sentences, num_tn_sentences, num_fn_sentences)
         # pad shorter lists with empty strings to make all lists of equal length
-        tp_sentences.extend([''] * (max_len - len(tp_sentences)))
-        fp_sentences.extend([''] * (max_len - len(fp_sentences)))
-        tn_sentences.extend([''] * (max_len - len(tn_sentences)))
-        fn_sentences.extend([''] * (max_len - len(fn_sentences)))
+        tp_sentences.extend([''] * (max_len - num_tp_sentences))
+        fp_sentences.extend([''] * (max_len - num_fp_sentences))
+        tn_sentences.extend([''] * (max_len - num_tn_sentences))
+        fn_sentences.extend([''] * (max_len - num_fn_sentences))
         # create new df
         class_df = pd.DataFrame({
             f'true positives ({num_tp_sentences})': tp_sentences,

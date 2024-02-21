@@ -3,9 +3,9 @@ import json
 from draw import get_weight_range, get_weight_rgba
 
 
-def _add_style(html_path, font_family, line_height):
+def _add_style(html_path):
     with open(html_path, 'a+', encoding='utf-8') as f:
-        f.write(f'<style> body {{font-family: {font_family}; text-align: center;}}</style>\n')
+        f.write(f'<style> body {{font-family: arial; text-align: center;}}</style>\n')
 
 
 def _add_title(title,  html_path):
@@ -77,7 +77,7 @@ def _generate_file(results_json, html_path):
         pass
 
     # add style
-    _add_style(html_path, font_family='arial', line_height=2.5)
+    _add_style(html_path)
 
     for key, value in results_json.items():
         _add_title(key, html_path)
@@ -100,6 +100,6 @@ if __name__ == '__main__':
         results_json = json.load(open('results/json/results.json', 'r', encoding='utf-8'))
         print('Generating HTML...')
         _generate_file(results_json, 'results/html/results.html')
-        print('HTML generated.')
+        print('HTML saved in results/html/results.html')
     except FileNotFoundError:
         print('JSON not found. Please run generate_json.py first.')
