@@ -17,11 +17,11 @@ def _add_section(sentence, tokens, score, lime_weights, shap_weights, occlusion_
     with open(html_path, 'a+', encoding='utf-8') as f:
         f.write(f'<h2>score: {score:.2f}</h2>\n')
         if is_query:
-            f.write(f'<p style="color: black; font-family: Arial; text-align: center; line-height: 2.5;">"{sentence}"</p>')
+            f.write(f'<p style="color: black; font-family: Arial; text-align: center; line-height: 2; margin: 0;">"{sentence}"</p>')
             f.write('\n<br><br>\n')
         else:
             f.write('<h3>ORIGINAL</h3>\n')
-            f.write(f'<p style="color: black; font-family: Arial; text-align: center; line-height: 2.5;">"{sentence}"</p>')
+            f.write(f'<p style="color: black; font-family: Arial; text-align: center; line-height: 2; margin: 0;">"{sentence}"</p>')
             f.write('\n<br><br>\n')
             f.write('<h3>LIME</h3>\n')
             f.write(_get_sentence_html(tokens, lime_weights))
@@ -39,7 +39,7 @@ def _get_sentence_html(tokens, weights):
 
     weight_range = get_weight_range(weights)
 
-    sentence_html = '<p style="color: black; font-family: Arial; text-align: center; line-height: 2.5;">"'
+    sentence_html = '<p style="color: black; font-family: Arial; text-align: center; line-height: 2; margin: 0;">"'
 
     for token in tokens:
         # only clean if token is a word
