@@ -4,7 +4,7 @@ from draw import get_weight_range, get_weight_rgba
 
 
 def _add_style(html_path):
-    with open(html_path, 'a+', encoding='utf-8') as f:
+    with open(html_path, 'w', encoding='utf-8') as f:
         f.write(f'<style> body {{font-family: arial; text-align: center;}}</style>\n')
 
 
@@ -13,15 +13,15 @@ def _add_title(title,  html_path):
         f.write(f'<h1>{title}</h1>\n')
 
 
-def _add_section(tokens, proba, lime_weights, shap_weights, occlusion_weights, query, html_path):
+def _add_section(sentence, tokens, score, lime_weights, shap_weights, occlusion_weights, is_query, html_path):
     with open(html_path, 'a+', encoding='utf-8') as f:
-        f.write(f'<h2>score: {proba:.2f}</h2>\n')
-        if query:
-            f.write(f'<p style="color: black; font-family: Arial; text-align: center; line-height: 2.5;">"{"".join(tokens)}"</p>')
+        f.write(f'<h2>score: {score:.2f}</h2>\n')
+        if is_query:
+            f.write(f'<p style="color: black; font-family: Arial; text-align: center; line-height: 2.5;">"{sentence}"</p>')
             f.write('\n<br><br>\n')
         else:
             f.write('<h3>ORIGINAL</h3>\n')
-            f.write(f'<p style="color: black; font-family: Arial; text-align: center; line-height: 2.5;">"{"".join(tokens)}"</p>')
+            f.write(f'<p style="color: black; font-family: Arial; text-align: center; line-height: 2.5;">"{sentence}"</p>')
             f.write('\n<br><br>\n')
             f.write('<h3>LIME</h3>\n')
             f.write(_get_sentence_html(tokens, lime_weights))
@@ -72,17 +72,14 @@ def _get_sentence_html(tokens, weights):
 
 
 def _generate_file(results_json, html_path):
-    # clear html
-    with open(html_path, 'w', encoding='utf-8') as f:
-        pass
-
     # add style
     _add_style(html_path)
 
     for key, value in results_json.items():
         _add_title(key, html_path)
 
-        proba = value['classification_score']
+        sentence = value['sentence']
+        score = value['classification_score']
         parts = value['parts']
 
         tokens = [part['token'] for part in parts]
@@ -90,9 +87,9 @@ def _generate_file(results_json, html_path):
         shap_weights = [part['shap_weight'] for part in parts]
         occlusion_weights = [part['occlusion_weight'] for part in parts]
 
-        query = key.endswith('Query')
+        is_query = key.endswith('Query')
 
-        _add_section(tokens, proba, lime_weights, shap_weights, occlusion_weights, query, html_path)
+        _add_section(sentence, tokens, score, lime_weights, shap_weights, occlusion_weights, is_query, html_path)
 
 
 if __name__ == '__main__':

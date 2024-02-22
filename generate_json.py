@@ -56,16 +56,13 @@ def _create_json_entry(sentence, cleaned_sentence, proba, lime_weights, shap_wei
             parts.append({'token': token, 'lime_weight': 0.0, 'shap_weight': 0.0, 'occlusion_weight': 0.0})
 
     return {
+        'sentence': sentence,
         'classification_score': proba,
         'parts': parts
     }
 
 
 def _generate_file(clf, samples_df, json_path, lime_optimized):
-    # clear json
-    with open(json_path, 'w') as f:
-        pass
-
     samples_dict = _load_samples_as_dict(samples_df)
 
     json_dict = {}
