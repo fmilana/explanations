@@ -2,7 +2,7 @@
 
 ![Screenshot of the heatmaps](readme_screenshot.png)
 
-Generating explanations for TACA's XGBoost ClassifierChains trained on the restaurant reviews dataset.
+LIME, SHAP and Occlusion heat maps for XGBoost ClassifierChains.
 
 ## Setup
 
