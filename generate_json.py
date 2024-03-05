@@ -8,7 +8,7 @@ import regex
 from lime_explain import get_lime_weights
 from occlusion_explain import get_occlusion_weights
 from shap_explain import get_shap_weights
-from vectorizer import Sentence2Vec
+from vectorizer import Sentence2Embedding
 from custom_pipeline import CustomPipeline
 
 
@@ -67,7 +67,7 @@ def _generate_file(clf, samples_df, json_path, lime_optimized):
 
     json_dict = {}
 
-    pipeline = CustomPipeline(steps=[('vectorizer', Sentence2Vec()), ('classifier', clf)])
+    pipeline = CustomPipeline(steps=[('vectorizer', Sentence2Embedding()), ('classifier', clf)])
 
     class_names = list(samples_dict.keys())
 

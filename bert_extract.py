@@ -19,6 +19,10 @@ def extract_hidden_state(batch):
 model_ckpt = 'bert-base-uncased'
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 model = AutoModel.from_pretrained(model_ckpt).to(device)
+
+for param in model.parameters():
+    param.requires_grad = False
+
 tokenizer = AutoTokenizer.from_pretrained(model_ckpt)
 
 df = pd.read_csv('data/train.csv')

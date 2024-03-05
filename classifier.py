@@ -11,6 +11,7 @@ class MultiLabelProbClassifier(BaseEstimator, ClassifierMixin):
     chains = []
     gpu = len(GPUtil.getGPUs()) > 0
 
+
     def __init__(self):
         if self.gpu:
             xgb = XGBClassifier(tree_method='hist', device='cuda')
