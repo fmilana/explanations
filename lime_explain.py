@@ -30,7 +30,7 @@ def _run_lime(pipeline, categories, sentence, lime_optimized):
             clf=_default_clf(), 
             token_pattern=r'\b\w+\b', 
             n_samples=n_samples, 
-            position_dependent=True, 
+            position_dependent=True,
             random_state=42
         )      
 

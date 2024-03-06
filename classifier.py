@@ -40,7 +40,7 @@ class MultiLabelProbClassifier(BaseEstimator, ClassifierMixin):
                 sums_to = sum(list_of_probs)
                 new_probas = [x / sums_to for x in list_of_probs] # make probabilities sum to 1 for lime
                 ret_list.append(np.asarray(new_probas))
-            return np.asarray(ret_list) # return list of list of probas
+            return np.asarray(ret_list) # return np array of probas (for LIME)
 
     
     def predict(self, X):

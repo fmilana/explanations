@@ -2,10 +2,10 @@ from sklearn.pipeline import Pipeline
 
 
 class CustomPipeline(Pipeline):
-    # get predict_proba for SHAP (which requires a 2D array as input, even if there's only one sample)
-    def predict_proba_shap(self, X):
+    # get predict_proba for SHAP (which requires probas to be list (or array?) as input, even when there's only one sample)
+    def predict_proba_for_shap(self, X):
+        X = X.tolist() # convert to list (shap explainer converts to np array?)
         probas = super().predict_proba(X)
-        if len(X) == 1:
+        if isinstance(probas, list):
             return [probas]
-        else:
-            return probas
+        return probas

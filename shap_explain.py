@@ -7,7 +7,7 @@ def get_shap_weights(pipeline, class_names, sentence, class_name):
     masker = shap.maskers.Text(tokenizer=r'\b\w+\b')
 
     # predict_proba_shap is a function of CustomPipeline in custom_pipeline.py
-    explainer = shap.Explainer(pipeline.predict_proba_shap, masker=masker, output_names=class_names)
+    explainer = shap.Explainer(pipeline.predict_proba_for_shap, masker=masker, output_names=class_names)
 
     explanation = explainer([sentence])
 
