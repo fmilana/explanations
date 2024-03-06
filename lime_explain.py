@@ -34,6 +34,8 @@ def _run_lime(pipeline, categories, sentence, lime_optimized):
             random_state=42
         )      
 
+        print(f'fitting lime text explainer with sentence: {sentence} and n_samples: {n_samples}')
+
         text_explainer.fit(sentence, pipeline.predict_proba)
 
         explanation = text_explainer.explain_prediction(target_names=categories)

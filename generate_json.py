@@ -87,7 +87,7 @@ def _generate_file(clf, samples_df, json_path, lime_optimized):
 
         for i, list_of_tuples in enumerate([tp_examples_tuples, fp_examples_tuples, fn_examples_tuples]):
             for j, (sentence, cleaned_sentence, proba) in enumerate(list_of_tuples):
-                lime_weights, shap_weights, occlusion_weights = _get_all_weights(pipeline, class_names, cleaned_sentence, class_name, proba, lime_optimized)
+                lime_weights, shap_weights, occlusion_weights = _get_all_weights(pipeline, class_names, sentence, class_name, proba, lime_optimized)
                 json_dict[f'{class_name} {titles[i]} {j}'] = _create_json_entry(sentence, cleaned_sentence, proba, lime_weights, shap_weights, occlusion_weights)
 
                 print(f'{progress_counter+1}/{total_number_of_sentences} sentences processed.', end='\r')
@@ -100,7 +100,7 @@ def _generate_file(clf, samples_df, json_path, lime_optimized):
         random.shuffle(zipped_list)
 
         for (title, (sentence, cleaned_sentence, proba)) in zipped_list:
-            lime_weights, shap_weights, occlusion_weights = _get_all_weights(pipeline, class_names, cleaned_sentence, class_name, proba, lime_optimized)
+            lime_weights, shap_weights, occlusion_weights = _get_all_weights(pipeline, class_names, sentence, class_name, proba, lime_optimized)
             json_dict[f'{class_name} {title} Query'] = _create_json_entry(sentence, cleaned_sentence, proba, lime_weights, shap_weights, occlusion_weights)
 
             print(f'{progress_counter+1}/{total_number_of_sentences} sentences processed.', end='\r')
