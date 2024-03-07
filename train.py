@@ -133,9 +133,7 @@ def _train_and_validate(df):
     review_ids = [id for id in review_ids if id not in test_ids]
     # filter df to exclude test ids
     df = df[~df['review_id'].isin(test_ids)]
-    # initialise classifier
-    clf = MultiLabelProbClassifier()
-
+    # set thresholds for cross-validation
     thresholds = np.arange(0.1, 1, 0.1)
 
     # initialise 2D NumPy arrays (iterations x classes) to store best thresholds and scores for each class 
@@ -156,6 +154,9 @@ def _train_and_validate(df):
         # prepare validation data
         X_validation = np.array(validation_df['sentence_embedding'].tolist())
         Y_validation = np.array(validation_df.iloc[:, 7:])
+
+        # reinitialise classifier for each split
+        clf = MultiLabelProbClassifier()
         # fit classifier
         clf.fit(X_train, Y_train)
         # predict probabilities on validation set
