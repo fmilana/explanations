@@ -1,15 +1,17 @@
+import torch
 import ast
 import random
 import re
 import json
 import pandas as pd
-import joblib
 import regex
+from transformers import AutoModelForSequenceClassification
 from lime_explain import get_lime_weights
 from occlusion_explain import get_occlusion_weights
 from shap_explain import get_shap_weights
-from vectorizer import Sentence2Embedding
 from custom_pipeline import CustomPipeline
+from vectorizer import Sentence2Embedding
+from classifier import MultiLabelProbClassifier
 
 
 def _load_samples_as_dict(samples_df):
@@ -29,10 +31,10 @@ def _load_samples_as_dict(samples_df):
     return samples_dict
 
 
-def _get_all_weights(pipeline, class_names, sentence, class_name, proba, lime_optimized):
-    lime_bias, lime_weights = get_lime_weights(pipeline, class_names, sentence, class_name, lime_optimized=lime_optimized)
-    shap_weights = get_shap_weights(pipeline, class_names, sentence, class_name)
-    occlusion_weights = get_occlusion_weights(pipeline, class_names, sentence, class_name, proba)
+def _get_all_weights(pipeline, labels, sentence, label, proba, lime_optimized):
+    lime_bias, lime_weights = get_lime_weights(pipeline, labels, sentence, label, lime_optimized=lime_optimized)
+    shap_weights = get_shap_weights(pipeline, labels, sentence, label)
+    occlusion_weights = get_occlusion_weights(pipeline, labels, sentence, label, proba)
     return lime_weights, shap_weights, occlusion_weights
 
 
@@ -62,33 +64,34 @@ def _create_json_entry(sentence, cleaned_sentence, proba, lime_weights, shap_wei
     }
 
 
-def _generate_file(clf, samples_df, json_path, lime_optimized):
+def _generate_file(classifier, samples_df, json_path, lime_optimized):
     samples_dict = _load_samples_as_dict(samples_df)
 
     json_dict = {}
 
-    pipeline = CustomPipeline(steps=[('vectorizer', Sentence2Embedding()), ('classifier', clf)])
+    pipeline = CustomPipeline(steps=[('vectorizer', Sentence2Embedding()), ('classifier', classifier)])
 
-    class_names = list(samples_dict.keys())
+    labels = list(samples_dict.keys())
+    print(f'========================> Labels: {labels}')
 
-    total_number_of_sentences = sum([len(samples_dict[class_name]['TP Examples Tuples']) + len(samples_dict[class_name]['FP Examples Tuples']) + len(samples_dict[class_name]['FN Examples Tuples']) + 4 for class_name in class_names])
+    total_number_of_sentences = sum([len(samples_dict[label]['TP Examples Tuples']) + len(samples_dict[label]['FP Examples Tuples']) + len(samples_dict[label]['FN Examples Tuples']) + 4 for label in labels])
     progress_counter = 0
 
-    for class_name in class_names:
-        tp_examples_tuples = samples_dict[class_name]['TP Examples Tuples']
-        fp_examples_tuples = samples_dict[class_name]['FP Examples Tuples']
-        fn_examples_tuples = samples_dict[class_name]['FN Examples Tuples']
-        top_positive_query_tuple = samples_dict[class_name]['Top Positive Query Tuple']
-        q1_positive_query_tuple = samples_dict[class_name]['Q1 Positive Query Tuple']
-        q3_negative_query_tuple = samples_dict[class_name]['Q3 Negative Query Tuple']
-        bottom_negative_query_tuple = samples_dict[class_name]['Bottom Negative Query Tuple']
+    for label in labels:
+        tp_examples_tuples = samples_dict[label]['TP Examples Tuples']
+        fp_examples_tuples = samples_dict[label]['FP Examples Tuples']
+        fn_examples_tuples = samples_dict[label]['FN Examples Tuples']
+        top_positive_query_tuple = samples_dict[label]['Top Positive Query Tuple']
+        q1_positive_query_tuple = samples_dict[label]['Q1 Positive Query Tuple']
+        q3_negative_query_tuple = samples_dict[label]['Q3 Negative Query Tuple']
+        bottom_negative_query_tuple = samples_dict[label]['Bottom Negative Query Tuple']
 
         titles = ['True Positives', 'False Positives', 'False Negatives']
 
         for i, list_of_tuples in enumerate([tp_examples_tuples, fp_examples_tuples, fn_examples_tuples]):
             for j, (sentence, cleaned_sentence, proba) in enumerate(list_of_tuples):
-                lime_weights, shap_weights, occlusion_weights = _get_all_weights(pipeline, class_names, sentence, class_name, proba, lime_optimized)
-                json_dict[f'{class_name} {titles[i]} {j}'] = _create_json_entry(sentence, cleaned_sentence, proba, lime_weights, shap_weights, occlusion_weights)
+                lime_weights, shap_weights, occlusion_weights = _get_all_weights(pipeline, labels, sentence, label, proba, lime_optimized)
+                json_dict[f'{label} {titles[i]} {j}'] = _create_json_entry(sentence, cleaned_sentence, proba, lime_weights, shap_weights, occlusion_weights)
 
                 print(f'{progress_counter+1}/{total_number_of_sentences} sentences processed.', end='\r')
                 progress_counter += 1
@@ -100,8 +103,8 @@ def _generate_file(clf, samples_df, json_path, lime_optimized):
         random.shuffle(zipped_list)
 
         for (title, (sentence, cleaned_sentence, proba)) in zipped_list:
-            lime_weights, shap_weights, occlusion_weights = _get_all_weights(pipeline, class_names, sentence, class_name, proba, lime_optimized)
-            json_dict[f'{class_name} {title} Query'] = _create_json_entry(sentence, cleaned_sentence, proba, lime_weights, shap_weights, occlusion_weights)
+            lime_weights, shap_weights, occlusion_weights = _get_all_weights(pipeline, labels, sentence, label, proba, lime_optimized)
+            json_dict[f'{label} {title} Query'] = _create_json_entry(sentence, cleaned_sentence, proba, lime_weights, shap_weights, occlusion_weights)
 
             print(f'{progress_counter+1}/{total_number_of_sentences} sentences processed.', end='\r')
             progress_counter += 1
@@ -114,10 +117,11 @@ if __name__ == '__main__':
     try:
         probas_df = pd.read_csv('results/probas.csv')
         scores_df = pd.read_csv('results/scores.csv')
-        clf = joblib.load('models/model.sav')
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        classifier = MultiLabelProbClassifier()
         sampled_df = pd.read_csv('results/samples.csv', index_col=0)
         print('Generating JSON...')
-        _generate_file(clf, sampled_df, 'results/json/results.json', lime_optimized=True)
+        _generate_file(classifier, sampled_df, 'results/json/results.json', lime_optimized=False)
         print('\nJSON generated.')
     except FileNotFoundError as e:
         print('Model and/or data not found. Please run train.py and sample.py first.')

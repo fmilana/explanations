@@ -16,11 +16,11 @@ def _default_clf():
     return SGDClassifier(**kwargs)
 
 
-def _run_lime(pipeline, categories, sentence, lime_optimized):
+def _run_lime(pipeline, labels, sentence, lime_optimized):
     if lime_optimized:
         n_samples_list = [300, 1000, 2000, 3000, 4000, 5000]
     else:
-        n_samples_list = [2000]
+        n_samples_list = [1500] # keep low to avoid CUDA out of memory error
 
     best_score = 0
     best_dict = {}
@@ -32,13 +32,11 @@ def _run_lime(pipeline, categories, sentence, lime_optimized):
             n_samples=n_samples, 
             position_dependent=True,
             random_state=42
-        )      
-
-        print(f'fitting lime text explainer with sentence: {sentence} and n_samples: {n_samples}')
+        )
 
         text_explainer.fit(sentence, pipeline.predict_proba)
 
-        explanation = text_explainer.explain_prediction(target_names=categories)
+        explanation = text_explainer.explain_prediction(target_names=labels)
 
         pred_dict = format_as_dict(explanation)
 
@@ -53,10 +51,10 @@ def _run_lime(pipeline, categories, sentence, lime_optimized):
     return best_dict
 
 
-def get_lime_weights(pipeline, class_names, sentence, class_name, lime_optimized):
-    lime_dict = _run_lime(pipeline, class_names, sentence, lime_optimized)
+def get_lime_weights(pipeline, labels, sentence, label, lime_optimized):
+    lime_dict = _run_lime(pipeline, labels, sentence, lime_optimized)
 
-    target = lime_dict['targets'][class_names.index(class_name)]
+    target = lime_dict['targets'][labels.index(label)]
     positive_weight_tuples = [(entry['feature'], entry['weight']) for entry in target['feature_weights']['pos']]
     negative_weight_tuples = [(entry['feature'], entry['weight']) for entry in target['feature_weights']['neg']]
 

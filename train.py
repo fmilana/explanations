@@ -11,9 +11,6 @@ from skmultilearn.model_selection import iterative_train_test_split
 from sklearn.metrics import f1_score, roc_auc_score, accuracy_score
 from ray import tune
 
-#############################################
-# REMEMBER TO FREE C:\Users\feder\ray_results
-#############################################
 
 MODEL_CKPT = 'distilbert-base-uncased'
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -333,12 +330,12 @@ if __name__ == '__main__':
 
         X_train = train_df[['review_id', 'original_sentence']].values
         y_train = train_df.iloc[:, 7:].values
-        X_test = test_df[['review_id', 'original_sentence']].values
+        X_test = test_df[['review_id', 'original_sentence', 'cleaned_sentence']].values
         y_test = test_df.iloc[:, 7:].values
 
         # convert back to pandas dfs with label names
         train_df = pd.DataFrame({'review_id': X_train[:, 0], 'original_sentence': X_train[:, 1]})
-        test_df = pd.DataFrame({'original_sentence': X_test[:, 1]})
+        test_df = pd.DataFrame({'original_sentence': X_test[:, 1], 'cleaned_sentence': X_test[:, 2]})
 
         label_columns = df.columns[7:]
 
@@ -385,5 +382,7 @@ if __name__ == '__main__':
         print('data/train.csv not found.')
 
 
-# FIX:
-# thresholds very greatly between splits
+# TODO:
+# thresholds very greatly between splits?
+# try different transformer models
+# set label2id and id2label in tokenizer

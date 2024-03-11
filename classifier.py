@@ -1,48 +1,52 @@
+import torch
 import numpy as np
-import GPUtil
 from sklearn.base import BaseEstimator, ClassifierMixin
-from sklearn.multioutput import ClassifierChain
-from xgboost import XGBClassifier
+from transformers import AutoModelForSequenceClassification
+    
 
-
-# from https://github.com/TeamHG-Memex/eli5/issues/337
 class MultiLabelProbClassifier(BaseEstimator, ClassifierMixin):
-    number_of_chains = 10
-    chains = []
-    gpu = len(GPUtil.getGPUs()) > 0
-
 
     def __init__(self):
-        if self.gpu:
-            xgb = XGBClassifier(tree_method='hist', device='cuda')
-        else:
-            xgb = XGBClassifier()
-        self.chains = [ClassifierChain(xgb, order='random', random_state=i) for i in range(self.number_of_chains)]
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.model = AutoModelForSequenceClassification.from_pretrained('models/final').to(device)
 
 
     def fit(self, X, Y):
-        for chain in self.chains:
-            chain.fit(X, Y)
+        pass
 
-
+    
     def predict_proba(self, X):
-        single_instance = len(X) == 1
+        inputs = {name: tensor.to(self.model.device) for name, tensor in X.items()}
+        output = self.model(**inputs).logits.cpu().detach().numpy()
+        probas = torch.sigmoid(torch.from_numpy(output)).numpy()
 
-        if single_instance:
-            self.probas_ = np.array([chain.predict_proba(X) for chain in self.chains]).mean(axis=0)[0]
-            sums_to = sum(self.probas_)
-            new_probas = [x / sums_to for x in self.probas_] # make probabilities sum to 1 for lime
-            return new_probas # return list of probas
-        else:
-            self.probas_ = np.array([chain.predict_proba(X) for chain in self.chains]).mean(axis=0)
-            ret_list = []
-            for list_of_probs in self.probas_:
-                sums_to = sum(list_of_probs)
-                new_probas = [x / sums_to for x in list_of_probs] # make probabilities sum to 1 for lime
-                ret_list.append(np.asarray(new_probas))
-            return np.asarray(ret_list) # return np array of probas (for LIME)
+        ret_list = []
+
+        for list_of_probs in probas:
+            sums_to = np.sum(list_of_probs)
+            epsilon = 1e-7
+            new_probas = np.divide(list_of_probs, sums_to + epsilon)
+            ret_list.append(new_probas)
+        
+        return np.asarray(ret_list)
 
     
     def predict(self, X):
         return self.predict_proba(X)
-    
+
+
+    # def predict_proba(self, X):
+    #     if len(X) == 1:
+    #         self.probas_ = np.array([chain.predict_proba(X) for chain in self.chains]).mean(axis=0)[0]
+    #         sums_to = sum(self.probas_)
+    #         new_probas = [x / sums_to for x in self.probas_] # make probabilities sum to 1 for lime
+    #         return new_probas # return list of probas
+    #     else:
+    #         self.probas_ = np.array([chain.predict_proba(X) for chain in self.chains]).mean(axis=0)
+    #         ret_list = []
+    #         for list_of_probs in self.probas_:
+    #             sums_to = sum(list_of_probs)
+    #             new_probas = [x / sums_to for x in list_of_probs] # make probabilities sum to 1 for lime
+    #             ret_list.append(np.asarray(new_probas))
+    #         ret_list = np.asarray(ret_list)
+    #         return ret_list # return list of list of probas
