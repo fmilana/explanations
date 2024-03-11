@@ -1,15 +1,29 @@
+import os
+import shutil
 import random
-import joblib
+import torch
 import numpy as np
 import pandas as pd
-from sklearn.metrics import f1_score
-from augment import oversample
-from classifier import MultiLabelProbClassifier
+from datasets import Dataset, DatasetDict
+from transformers import AutoModelForSequenceClassification, AutoTokenizer, Trainer, TrainingArguments, EarlyStoppingCallback, EvalPrediction
+from sklearn.model_selection import GroupKFold
+from skmultilearn.model_selection import iterative_train_test_split
+from sklearn.metrics import f1_score, roc_auc_score, accuracy_score
+from ray import tune
+
+#############################################
+# REMEMBER TO FREE C:\Users\feder\ray_results
+#############################################
+
+MODEL_CKPT = 'distilbert-base-uncased'
+DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
+LABEL_NAMES = []
+
+best_thresholds = []
 
 
-# generates confusion matrices for each class and saves to csv
-def _generate_cm_csv(test_df, class_names, Y_pred, Y_true):
-    for i, class_name in enumerate(class_names):
+def _generate_cm_csv(test_df, Y_pred, Y_true):
+    for i, label in enumerate(LABEL_NAMES):
         # return boolean arrays for each category
         TP = np.logical_and(Y_pred[:, i] == 1, Y_true[:, i] == 1)
         FP = np.logical_and(Y_pred[:, i] == 1, Y_true[:, i] == 0)
@@ -40,11 +54,11 @@ def _generate_cm_csv(test_df, class_names, Y_pred, Y_true):
             f'false negatives ({num_fn_sentences})': fn_sentences
         })
         # save to csv
-        class_df.to_csv(f'results/cm/{class_name}_cm.csv', index=False)
+        class_df.to_csv(f'results/cm/{label}_cm.csv', index=False)
 
 
-def _generate_probas_csv(test_df, class_names, Y_test_prob):
-    proba_df = pd.DataFrame(Y_test_prob, columns=[f'proba {class_names}' for i, class_names in enumerate(class_names)])
+def _generate_probas_csv(test_df, y_test_probas):
+    proba_df = pd.DataFrame(y_test_probas, columns=[f'proba {label}' for label in LABEL_NAMES])
     test_df = test_df.reset_index(drop=True)
     test_df = pd.concat([test_df, proba_df], axis=1)
     test_df.to_csv('results/probas.csv', index=False)
@@ -52,7 +66,7 @@ def _generate_probas_csv(test_df, class_names, Y_test_prob):
     return test_df
 
 
-def _generate_scores_csv(class_names, test_df, average_best_thresholds_per_class):
+def _generate_scores_csv(test_df):
     index = ['threshold', 
              'Q1 positive', 
              'median positive', 
@@ -63,26 +77,26 @@ def _generate_scores_csv(class_names, test_df, average_best_thresholds_per_class
              'Q3 negative', 
              'mean negative']
 
-    scores_df = pd.DataFrame(index=index, columns=class_names)
+    scores_df = pd.DataFrame(index=index, columns=LABEL_NAMES)
 
-    scores_df.loc['threshold'] = [threshold for threshold in average_best_thresholds_per_class]
+    scores_df.loc['threshold'] = [threshold for threshold in best_thresholds]
 
     scores_dict = {}
 
-    for class_name in class_names:
-        positive_class_df = test_df[test_df[f'pred {class_name}'] == 1]
-        negative_class_df = test_df[test_df[f'pred {class_name}'] == 0]
+    for label in LABEL_NAMES:
+        positive_class_df = test_df[test_df[f'pred {label}'] == 1]
+        negative_class_df = test_df[test_df[f'pred {label}'] == 0]
 
-        Q1_positive = positive_class_df[f'proba {class_name}'].quantile(0.25)
-        median_positive = positive_class_df[f'proba {class_name}'].median()
-        Q3_positive = positive_class_df[f'proba {class_name}'].quantile(0.75)
-        mean_positive = positive_class_df[f'proba {class_name}'].mean()
-        Q1_negative = negative_class_df[f'proba {class_name}'].quantile(0.25)
-        median_negative = negative_class_df[f'proba {class_name}'].median()
-        Q3_negative = negative_class_df[f'proba {class_name}'].quantile(0.75)
-        mean_negative = negative_class_df[f'proba {class_name}'].mean()
+        Q1_positive = positive_class_df[f'proba {label}'].quantile(0.25)
+        median_positive = positive_class_df[f'proba {label}'].median()
+        Q3_positive = positive_class_df[f'proba {label}'].quantile(0.75)
+        mean_positive = positive_class_df[f'proba {label}'].mean()
+        Q1_negative = negative_class_df[f'proba {label}'].quantile(0.25)
+        median_negative = negative_class_df[f'proba {label}'].median()
+        Q3_negative = negative_class_df[f'proba {label}'].quantile(0.75)
+        mean_negative = negative_class_df[f'proba {label}'].mean()
 
-        scores_dict[class_name] = {
+        scores_dict[label] = {
             'Q1 positive': Q1_positive,
             'median positive': median_positive,
             'Q3 positive': Q3_positive,
@@ -93,168 +107,283 @@ def _generate_scores_csv(class_names, test_df, average_best_thresholds_per_class
             'mean negative': mean_negative
         }
 
-    for class_name in class_names:
-        scores_df.loc['Q1 positive', class_name] = scores_dict[class_name]['Q1 positive']
-        scores_df.loc['median positive', class_name] = scores_dict[class_name]['median positive']
-        scores_df.loc['Q3 positive', class_name] = scores_dict[class_name]['Q3 positive']
-        scores_df.loc['mean positive', class_name] = scores_dict[class_name]['mean positive']
-        scores_df.loc['Q1 negative', class_name] = scores_dict[class_name]['Q1 negative']
-        scores_df.loc['median negative', class_name] = scores_dict[class_name]['median negative']
-        scores_df.loc['Q3 negative', class_name] = scores_dict[class_name]['Q3 negative']
-        scores_df.loc['mean negative', class_name] = scores_dict[class_name]['mean negative']
+    for label in LABEL_NAMES:
+        scores_df.loc['Q1 positive', label] = scores_dict[label]['Q1 positive']
+        scores_df.loc['median positive', label] = scores_dict[label]['median positive']
+        scores_df.loc['Q3 positive', label] = scores_dict[label]['Q3 positive']
+        scores_df.loc['mean positive', label] = scores_dict[label]['mean positive']
+        scores_df.loc['Q1 negative', label] = scores_dict[label]['Q1 negative']
+        scores_df.loc['median negative', label] = scores_dict[label]['median negative']
+        scores_df.loc['Q3 negative', label] = scores_dict[label]['Q3 negative']
+        scores_df.loc['mean negative', label] = scores_dict[label]['mean negative']
                                                                         
     scores_df.to_csv('results/scores.csv')
 
 
-def _train_and_validate(df):
-    # remove rows with null values in cleaned_sentence
-    df = df[df['cleaned_sentence'].notnull()]
-
-    # get list of class names
-    class_names = df.columns[7:].tolist()
-    # process sentence embedding strings
-    df.loc[:, 'sentence_embedding'] = df['sentence_embedding'].apply(
-        lambda x: np.fromstring(
-            x.replace('\n','')
-            .replace('[','')
-            .replace(',', ' ')
-            .replace(']',''), sep=' '
-        )
-    )
-    # create list of review ids for training
-    review_ids = df['review_id'].unique().tolist()
-    # set test size
-    test_size = 5 # arbitrary
-    # randomly select 5 test ids
+def _split_on_review_ids(train_df):
+    review_ids = train_df['review_id'].unique().tolist()
+    test_size = int(0.2 * len(review_ids))
     test_ids = random.sample(review_ids, test_size)
-    # create test df based on test ids
-    test_df = df[df['review_id'].isin(test_ids)]
-    # remove test ids from review ids
+    test_df = train_df[train_df['review_id'].isin(test_ids)]
     review_ids = [id for id in review_ids if id not in test_ids]
-    # filter df to exclude test ids
-    df = df[~df['review_id'].isin(test_ids)]
-    # set thresholds for cross-validation
-    thresholds = np.arange(0.1, 1, 0.1)
+    train_df = train_df[~train_df['review_id'].isin(test_ids)]
+    return train_df, test_df
 
-    # initialise 2D NumPy arrays (iterations x classes) to store best thresholds and scores for each class 
-    best_thresholds_per_class = np.zeros((len(review_ids), len(class_names)))
-    best_scores_per_class = np.zeros((len(review_ids), len(class_names)))
 
-    for iteration_index, review_id in enumerate(review_ids):
-        print(f'==> Training on split {iteration_index+1}/{len(review_ids)}...')
-        # create validation set
-        validation_df = df[df['review_id'] == review_id]
-        # create training set by removing test and validation sets
-        train_df = df[~df['review_id'].isin(test_ids + [review_id])]
-        # prepare training data
-        X_train = np.array(train_df['sentence_embedding'].tolist())
-        Y_train = np.array(train_df.iloc[:, 7:])
-        # # oversample minority classes (if present)
-        X_train, Y_train = oversample(X_train, Y_train)
-        # prepare validation data
-        X_validation = np.array(validation_df['sentence_embedding'].tolist())
-        Y_validation = np.array(validation_df.iloc[:, 7:])
+def _model_init():
+    model = AutoModelForSequenceClassification.from_pretrained(MODEL_CKPT, num_labels=len(LABEL_NAMES), problem_type='multi_label_classification').to(DEVICE)
+    return model
 
-        # reinitialise classifier for each split
-        clf = MultiLabelProbClassifier()
-        # fit classifier
-        clf.fit(X_train, Y_train)
-        # predict probabilities on validation set
-        Y_prob = clf.predict_proba(X_validation)
 
-        # iterate over each class (index)
-        for class_index in range(len(class_names)):
-            # get true labels for the current class (1D array)
-            y_class_true = Y_validation[:, class_index]
-            # initialise best score and threshold for the current class
-            best_score_for_class = 0
-            best_threshold_for_class = 0
-            # iterate over thresholds
-            for threshold in thresholds:
-                # convert probabilities to binary predictions for the current class
-                y_class_pred = (Y_prob[:, class_index] > threshold).astype(int)
-                # calculate f1 score for the current class (compare 1D arrays)
-                score = f1_score(y_class_true, y_class_pred)
-                # update best score and threshold if score is better
-                if score > best_score_for_class:
-                    best_score_for_class = score
-                    best_threshold_for_class = threshold
+def _compute_metrics(pred):
+    labels = pred.label_ids
+    preds = torch.sigmoid(torch.from_numpy(pred.predictions)).numpy()
+    preds = (preds > best_thresholds).astype(int) # default threshold
+    f1 = f1_score(labels, preds, average='samples')
+    return {'f1': f1}
 
-            # store the best threshold and score for the current class
-            best_thresholds_per_class[iteration_index, class_index] = best_threshold_for_class
-            best_scores_per_class[iteration_index, class_index] = best_score_for_class
 
-        print('done.')
+def _ray_hp_space(trial):
+    return {
+        'learning_rate': tune.loguniform(1e-4, 1e-1),
+        'per_device_train_batch_size': tune.choice([8, 16, 32, 64]),
+        'weight_decay': tune.loguniform(1e-4, 1e-1),
+    }
 
-    # calculate the average best threshold and scores for each class (average of each column)
-    average_best_thresholds_per_class = np.mean(best_thresholds_per_class, axis=0)
-    average_scores_per_class = np.mean(best_scores_per_class, axis=0)
 
-    print(f'===============VALIDATION RESULTS===============')
-    print(f'average best thresholds per class: {average_best_thresholds_per_class}')
-    print(f'average scores per class: {average_scores_per_class}')
-    print(f'average score across all classes: {np.mean(average_scores_per_class)}')
-    print(f'================================================')
+def _validate(train_df):
+    global best_thresholds
+    
+    train_df, val_df = _split_on_review_ids(train_df)
 
-    # train the classifier on the full training set
-    X_train_full = np.array(df['sentence_embedding'].tolist())
-    Y_train_full = np.array(df.iloc[:, 7:])
-    clf.fit(X_train_full, Y_train_full)
-    # prepare test data
-    X_test = np.array(test_df['sentence_embedding'].tolist())
-    Y_test = np.array(test_df.iloc[:, 7:])
-    # predict probabilities on the test set
-    Y_test_prob = clf.predict_proba(X_test)
-    # create a 2D NumPy array of zeros with same size as Y_test_prob
-    Y_base_test_pred = np.zeros_like(Y_test_prob, dtype=int)
-    Y_test_pred = np.zeros_like(Y_test_prob, dtype=int)
-    # apply the average best threshold from cross-validation for each class
-    for class_index in range(len(class_names)):
-        Y_base_test_pred[:, class_index] = (Y_test_prob[:, class_index] >= 0.5).astype(int)
-        Y_test_pred[:, class_index] = (Y_test_prob[:, class_index] >= average_best_thresholds_per_class[class_index]).astype(int)
-    # append predictions to test_df and write to csv
-    for i, class_name in enumerate(class_names):
-        test_df[f'pred {class_name}'] = Y_test_pred[:, i]
-    test_df.to_csv('results/output.csv', index=False)
+    dataset = DatasetDict({
+        'train': Dataset.from_dict({'text': train_df['original_sentence'], 'labels': train_df[LABEL_NAMES].values.astype(np.float32)}),
+        'validation': Dataset.from_dict({'text': val_df['original_sentence'], 'labels': val_df[LABEL_NAMES].values.astype(np.float32)})
+    })
 
-    # create 1D NumPy arrays to store test scores for each class
-    test_scores_per_class = np.zeros((len(class_names)))
-    base_test_scores_per_class = np.zeros((len(class_names)))
-    # calculate test scores for each class
-    for i, class_name in enumerate(class_names):
-        # using 0.5 threshold
-        base_test_scores_per_class[i] = f1_score(Y_test[:, i], Y_base_test_pred[:, i])
-        # using average best thresholds
-        test_scores_per_class[i] = f1_score(Y_test[:, i], Y_test_pred[:, i])
-    # calculate overall test score using 0.5 threshold
-    base_test_score = f1_score(Y_test, Y_base_test_pred, average='weighted')
-    # calculate overall test score using average best thresholds
-    test_score = f1_score(Y_test, Y_test_pred, average='weighted')
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_CKPT)
+    sentences_encoded = dataset.map(lambda e: tokenizer(e['text'], padding=True, truncation=True), batched=True, batch_size=None)
 
-    print(f'===============TEST RESULTS===============')
-    print(f'test F1 Scores per class using 0.5 threshold: {base_test_scores_per_class}')
-    print(f'test F1 Scores per class using average best thresholds: {test_scores_per_class}')
-    print(f'base test F1 Score using 0.5 threshold: {base_test_score}')
-    print(f'test F1 Score using average best thresholds ({average_best_thresholds_per_class}): {test_score}')
-    print(f'==========================================')
+    save_path = 'models/hp_search/distilbert-finetuned'
 
-    # write confusion matrices to csv's
-    _generate_cm_csv(test_df, class_names, Y_test_pred, Y_test)
-    # write test_df probas to csv
-    test_df = _generate_probas_csv(test_df, class_names, Y_test_prob)
-    # write scores to csv
-    _generate_scores_csv(class_names, test_df, average_best_thresholds_per_class)
+    training_args = TrainingArguments(
+        output_dir=save_path,
+        num_train_epochs=50,
+        evaluation_strategy='steps',
+        disable_tqdm=False,
+        logging_steps=100,
+        log_level='error',
+        load_best_model_at_end=True
+    )
 
-    return clf
+    early_stopping_callback = EarlyStoppingCallback(
+        early_stopping_patience=3,
+        early_stopping_threshold=0.001
+    )
+
+    best_thresholds = np.full(len(LABEL_NAMES), 0.5) # initialise global variable
+
+    trainer = Trainer(
+        model=None,
+        model_init=_model_init,
+        args=training_args,
+        compute_metrics=_compute_metrics,
+        train_dataset=sentences_encoded['train'],
+        eval_dataset=sentences_encoded['validation'],
+        tokenizer=tokenizer,
+        callbacks=[early_stopping_callback]
+    )
+
+    best_run = trainer.hyperparameter_search(
+        direction='maximize',
+        backend='ray',
+        hp_space=_ray_hp_space,
+        n_trials=10
+    )
+
+    model = _model_init()
+
+    training_args = TrainingArguments(
+        output_dir=save_path,
+        num_train_epochs=50,
+        learning_rate=best_run.hyperparameters['learning_rate'],
+        per_device_train_batch_size=best_run.hyperparameters['per_device_train_batch_size'],
+        per_device_eval_batch_size=best_run.hyperparameters['per_device_train_batch_size'],
+        weight_decay=best_run.hyperparameters['weight_decay'],
+        evaluation_strategy='steps',
+        eval_steps=100,
+        disable_tqdm=False,
+        logging_steps=100,
+        log_level='error',
+        load_best_model_at_end=True
+    )
+
+    trainer = Trainer(
+        model=model,
+        args=training_args,
+        compute_metrics=_compute_metrics,
+        train_dataset=sentences_encoded['train'],
+        eval_dataset=sentences_encoded['validation'],
+        tokenizer=tokenizer,
+        callbacks=[early_stopping_callback]
+    )
+
+    trainer.train()
+
+    thresholds = np.arange(0.1, 0.9, 0.01)
+    
+    output = trainer.predict(sentences_encoded['validation']).predictions
+    probas = torch.sigmoid(torch.from_numpy(output)).numpy()
+
+    for i, label in enumerate(LABEL_NAMES):
+        best_f1 = 0.0
+        for threshold in thresholds:
+            label_predictions = (probas[:, i] > threshold)
+            f1 = f1_score(val_df[LABEL_NAMES].values[:, i], label_predictions)
+            if f1 > best_f1:
+                best_f1 = f1
+                best_thresholds[i] = threshold # update global variable
+
+    print(f'Returning best run hyperparameters: {best_run.hyperparameters} and best thresholds: {best_thresholds}')
+
+    return best_run.hyperparameters
+
+
+def _train(train_df):
+    train_df, val_df = _split_on_review_ids(train_df)
+
+    dataset = DatasetDict({
+        'train': Dataset.from_dict({'text': train_df['original_sentence'], 'labels': train_df[LABEL_NAMES].values.astype(np.float32)}),
+        'validation': Dataset.from_dict({'text': val_df['original_sentence'], 'labels': val_df[LABEL_NAMES].values.astype(np.float32)})
+    })
+
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_CKPT)
+    sentences_encoded = dataset.map(lambda e: tokenizer(e['text'], padding=True, truncation=True), batched=True, batch_size=None)
+
+    best_hyperparameters = _validate(train_df)
+
+    save_path = 'models/distilbert-finetuned'
+    best_learning_rate = best_hyperparameters['learning_rate']
+    best_batch_size = best_hyperparameters['per_device_train_batch_size']
+    best_weight_decay = best_hyperparameters['weight_decay']
+
+    training_args = TrainingArguments(
+        output_dir=save_path,
+        num_train_epochs=50,
+        learning_rate=best_learning_rate,
+        per_device_train_batch_size=best_batch_size,
+        per_device_eval_batch_size=best_batch_size,
+        weight_decay=best_weight_decay,
+        evaluation_strategy='steps',
+        eval_steps=100,
+        disable_tqdm=False,
+        logging_steps=100,
+        log_level='error',
+        load_best_model_at_end=True
+    )
+
+    early_stopping_callback = EarlyStoppingCallback(
+        early_stopping_patience=3,
+        early_stopping_threshold=0.001
+    )
+
+    model = _model_init()
+
+    trainer = Trainer(
+        model=None,
+        model_init=_model_init,
+        args=training_args,
+        compute_metrics=_compute_metrics,
+        train_dataset=sentences_encoded['train'],
+        eval_dataset=sentences_encoded['validation'],
+        tokenizer=tokenizer,
+        callbacks=[early_stopping_callback]
+    )
+
+    trainer.train()
+
+    trainer.save_model('models/final')
+
+    return trainer, tokenizer
+
+
+def _predict(test_df, trainer, tokenizer):
+    dataset = Dataset.from_dict({'text': test_df['original_sentence'], 'labels': test_df[LABEL_NAMES].values.astype(np.float32)})
+    sentences_encoded = dataset.map(lambda e: tokenizer(e['text'], padding=True, truncation=True), batched=True, batch_size=None)
+
+    with torch.no_grad():
+        pred_output = trainer.predict(sentences_encoded)
+
+    print(f'pred_output.metrics (best thresholds): {pred_output.metrics}')
+
+    probas = torch.sigmoid(torch.from_numpy(pred_output.predictions)).numpy()
+    predictions = (probas > best_thresholds).astype(int)
+
+    return probas, predictions
 
 
 if __name__ == '__main__':
     try:
-        df = pd.read_csv('data/train_bert.csv')
-        print('Training and validating model...')
-        clf = _train_and_validate(df)
-        # save the model to disk
-        joblib.dump(clf, 'model/model.sav')
-        print('Done. Model saved in model/model.sav.')
+        df = pd.read_csv('data/train.csv')
+        df = df[df['cleaned_sentence'].notnull()]
+
+        LABEL_NAMES = df.columns[7:].to_list()
+
+        train_df, test_df = _split_on_review_ids(df)
+
+        X_train = train_df[['review_id', 'original_sentence']].values
+        y_train = train_df.iloc[:, 7:].values
+        X_test = test_df[['review_id', 'original_sentence']].values
+        y_test = test_df.iloc[:, 7:].values
+
+        # convert back to pandas dfs with label names
+        train_df = pd.DataFrame({'review_id': X_train[:, 0], 'original_sentence': X_train[:, 1]})
+        test_df = pd.DataFrame({'original_sentence': X_test[:, 1]})
+
+        label_columns = df.columns[7:]
+
+        for i, label_column in enumerate(label_columns):
+            train_df[label_column] = y_train[:, i]
+            test_df[label_column] = y_test[:, i]
+
+        train_df = train_df.reset_index(drop=True)
+
+        print('Training model...')
+        trainer, tokenizer = _train(train_df)
+        print('Done. Model trained.')
+
+        print('Predicting...')
+        probas, predictions = _predict(test_df, trainer, tokenizer)
+        print('Done. Predictions made. Finetuned model saved in models/')
+
+        for i, label in enumerate(LABEL_NAMES):
+            test_df[f'pred {label}'] = predictions[:, i]
+        test_df.to_csv('results/predictions.csv', index=False)
+
+        _generate_cm_csv(test_df, predictions, y_test)
+        print('Confusion matrices saved in results/cm/')
+        test_df = _generate_probas_csv(test_df, probas)
+        print('Probabilities saved in results/')
+
+        _generate_scores_csv(test_df)
+        print('Scores saved in results/')
+
+        # remove ray_results contents
+        if os.path.isdir(os.path.abspath(f'C:\\Users\\{os.getlogin()}\\ray_results')):
+            subdirs = [f.path for f in os.scandir(f'C:\\Users\\{os.getlogin()}\\ray_results') if f.is_dir()]
+            for subdir in subdirs:
+                try:
+                    shutil.rmtree(subdir)
+                except OSError as e:
+                    print(f'Error: {subdir} : {e.strerror}')
+            print('ray_results contents removed.')
+        else:
+            print('=====> ray_results not found. Remove manually.')
+
+        print('Done. Model saved in models/final/')
     except FileNotFoundError as e:
-        print('data/train_bert.csv not found.')
+        print('data/train.csv not found.')
+
+
+# FIX:
+# thresholds very greatly between splits

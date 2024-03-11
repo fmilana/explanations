@@ -114,7 +114,7 @@ if __name__ == '__main__':
     try:
         probas_df = pd.read_csv('results/probas.csv')
         scores_df = pd.read_csv('results/scores.csv')
-        clf = joblib.load('model/model.sav')
+        clf = joblib.load('models/model.sav')
         sampled_df = pd.read_csv('results/samples.csv', index_col=0)
         print('Generating JSON...')
         _generate_file(clf, sampled_df, 'results/json/results.json', lime_optimized=True)
