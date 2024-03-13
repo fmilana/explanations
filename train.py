@@ -5,7 +5,15 @@ import torch
 import numpy as np
 import pandas as pd
 from datasets import Dataset, DatasetDict
-from transformers import AutoModelForSequenceClassification, AutoTokenizer, Trainer, TrainingArguments, EarlyStoppingCallback, EvalPrediction
+from transformers import (
+    AutoConfig,
+    AutoModelForSequenceClassification,
+    AutoTokenizer,
+    Trainer,
+    TrainingArguments,
+    EarlyStoppingCallback,
+    EvalPrediction
+)
 from sklearn.model_selection import GroupKFold
 from skmultilearn.model_selection import iterative_train_test_split
 from sklearn.metrics import f1_score, roc_auc_score, accuracy_score
@@ -13,6 +21,7 @@ from ray import tune
 
 
 MODEL_CKPT = 'distilbert-base-uncased'
+# MODEL_CKPT = 'bert-base-uncased'
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 LABEL_NAMES = []
 
@@ -128,7 +137,11 @@ def _split_on_review_ids(train_df):
 
 
 def _model_init():
-    model = AutoModelForSequenceClassification.from_pretrained(MODEL_CKPT, num_labels=len(LABEL_NAMES), problem_type='multi_label_classification').to(DEVICE)
+    config = AutoConfig.from_pretrained(MODEL_CKPT, num_labels=len(LABEL_NAMES), problem_type='multi_label_classification')
+    config.num_labels = len(LABEL_NAMES)
+    config.id2label = {i: label for i, label in enumerate(LABEL_NAMES)}
+    config.label2id = {label: i for i, label in enumerate(LABEL_NAMES)}
+    model = AutoModelForSequenceClassification.from_pretrained(MODEL_CKPT, config=config).to(DEVICE)
     return model
 
 
@@ -232,6 +245,7 @@ def _validate(train_df):
     output = trainer.predict(sentences_encoded['validation']).predictions
     probas = torch.sigmoid(torch.from_numpy(output)).numpy()
 
+    # # find best threshold for each label based on split validation set f1 score
     for i, label in enumerate(LABEL_NAMES):
         best_f1 = 0.0
         for threshold in thresholds:
@@ -319,6 +333,19 @@ def _predict(test_df, trainer, tokenizer):
     return probas, predictions
 
 
+def _remove_checkpoints(dir_path):
+    if os.path.isdir(dir_path):
+        subdirs = [f.path for f in os.scandir(dir_path) if f.is_dir()]
+        for subdir in subdirs:
+            try:
+                shutil.rmtree(subdir)
+            except OSError as e:
+                print(f'Error: {subdir} : {e.strerror}')
+        print(f'{dir_path} contents removed.')
+    else:
+        print(f'=====> {dir_path} not found. Remove manually.')
+
+
 if __name__ == '__main__':
     try:
         df = pd.read_csv('data/train.csv')
@@ -365,24 +392,14 @@ if __name__ == '__main__':
         _generate_scores_csv(test_df)
         print('Scores saved in results/')
 
-        # remove ray_results contents
-        if os.path.isdir(os.path.abspath(f'C:\\Users\\{os.getlogin()}\\ray_results')):
-            subdirs = [f.path for f in os.scandir(f'C:\\Users\\{os.getlogin()}\\ray_results') if f.is_dir()]
-            for subdir in subdirs:
-                try:
-                    shutil.rmtree(subdir)
-                except OSError as e:
-                    print(f'Error: {subdir} : {e.strerror}')
-            print('ray_results contents removed.')
-        else:
-            print('=====> ray_results not found. Remove manually.')
-
-        print('Done. Model saved in models/final/')
+        _remove_checkpoints(os.path.abspath(f'C:\\Users\\{os.getlogin()}\\ray_results'))
+        _remove_checkpoints('models/distilbert-finetuned')
+        _remove_checkpoints('models/hp_search')
     except FileNotFoundError as e:
         print('data/train.csv not found.')
 
 
 # TODO:
-# thresholds very greatly between splits?
+# thresholds vary greatly between splits?
 # try different transformer models
-# set label2id and id2label in tokenizer
+# https://www.kaggle.com/code/thedrcat/oversampling-for-multi-label-classification
