@@ -1,7 +1,8 @@
 import torch
 import numpy as np
 from sklearn.base import BaseEstimator, ClassifierMixin
-from transformers import AutoModelForSequenceClassification
+from transformers import AutoModelForSequenceClassification, AutoTokenizer
+from transformers_interpret import MultiLabelClassificationExplainer
     
 
 class MultiLabelProbClassifier(BaseEstimator, ClassifierMixin):
@@ -9,6 +10,8 @@ class MultiLabelProbClassifier(BaseEstimator, ClassifierMixin):
     def __init__(self):
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.model = AutoModelForSequenceClassification.from_pretrained('models/final').to(device)
+        self.tokenizer = AutoTokenizer.from_pretrained('models/final')
+        self.cls_explainer = MultiLabelClassificationExplainer(self.model, self.tokenizer)
 
 
     def fit(self, X, Y):
@@ -34,19 +37,11 @@ class MultiLabelProbClassifier(BaseEstimator, ClassifierMixin):
     def predict(self, X):
         return self.predict_proba(X)
 
+    
+    def get_interpret_weights(self, sentence, label):
+            if sentence == 'As ever, Korean barbecue brings with it an awful lot of admin.':
+                print('sentence:', sentence)
+                print('label:', label)
+                print(f'word_attributions: {[(token, attribute) for token, attribute in self.cls_explainer(sentence)[label]]}')
 
-    # def predict_proba(self, X):
-    #     if len(X) == 1:
-    #         self.probas_ = np.array([chain.predict_proba(X) for chain in self.chains]).mean(axis=0)[0]
-    #         sums_to = sum(self.probas_)
-    #         new_probas = [x / sums_to for x in self.probas_] # make probabilities sum to 1 for lime
-    #         return new_probas # return list of probas
-    #     else:
-    #         self.probas_ = np.array([chain.predict_proba(X) for chain in self.chains]).mean(axis=0)
-    #         ret_list = []
-    #         for list_of_probs in self.probas_:
-    #             sums_to = sum(list_of_probs)
-    #             new_probas = [x / sums_to for x in list_of_probs] # make probabilities sum to 1 for lime
-    #             ret_list.append(np.asarray(new_probas))
-    #         ret_list = np.asarray(ret_list)
-    #         return ret_list # return list of list of probas
+            return [(token, attribute) for token, attribute in self.cls_explainer(sentence)[label]]

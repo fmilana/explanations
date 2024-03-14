@@ -9,7 +9,7 @@ tokenizer = AutoTokenizer.from_pretrained('models/final')
 
 cls_explainer = MultiLabelClassificationExplainer(model, tokenizer)
 
-sentence = "A slab of roasted turbot for £48 is as good as it should be at that price and comes with a solid romesco sauce"
+sentence = "the wide rim of the steel fitting into which the cauldron fits contains curved metal compartments "
 
 word_attributions = cls_explainer(sentence)
 

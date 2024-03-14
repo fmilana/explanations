@@ -4,12 +4,12 @@ import pandas as pd
 
 def _generate_samples_csvs(probas_df, scores_df):
     # remove sentences from probas_df with less than 5 words (when cleaned)
-    probas_df = probas_df[probas_df['cleaned_sentence'].apply(lambda x: len(x.split()) >= 5)]
+    probas_df = probas_df[probas_df['original_sentence'].apply(lambda x: len(x.split()) >= 5)]
     probas_df = probas_df.reset_index(drop=True)
     
     scores_df.set_index(scores_df.columns[0], inplace=True)
 
-    labels = [label for label in probas_df.columns[2:].tolist() if not (label.startswith('pred') or label.startswith('proba'))]
+    labels = [label for label in probas_df.columns[7:].tolist() if not (label.startswith('pred') or label.startswith('proba'))]
 
     samples_dict = {}
 
@@ -29,25 +29,25 @@ def _generate_samples_csvs(probas_df, scores_df):
 
             # sample query from top 10 positive (at random among top 10 positive)
             top_positive_query_df = probas_df.nlargest(10, f'proba {label}').sample(n=1)
-            top_positive_query_tuple = (top_positive_query_df['original_sentence'].values[0], top_positive_query_df['cleaned_sentence'].values[0], top_positive_query_df[f'proba {label}'].values[0])
+            top_positive_query_tuple = (top_positive_query_df['original_sentence'].values[0], top_positive_query_df[f'proba {label}'].values[0])
             # remove sampled query from probas_df
             probas_df = probas_df.drop(top_positive_query_df.index)
 
             # sample query from around q1 positive (closest to q1 positive)
             q1_positive_query_df = probas_df.loc[(probas_df[f'proba {label}'] - q1_score_positive).abs().nsmallest(1).index]
-            q1_positive_query_tuple = (q1_positive_query_df['original_sentence'].values[0], q1_positive_query_df['cleaned_sentence'].values[0], q1_positive_query_df[f'proba {label}'].values[0])
+            q1_positive_query_tuple = (q1_positive_query_df['original_sentence'].values[0], q1_positive_query_df[f'proba {label}'].values[0])
             # remove sampled query from probas_df
             probas_df = probas_df.drop(q1_positive_query_df.index)
 
             # sample query from around q3 negative (closest to q3 negative)
             q3_negative_query_df = probas_df.loc[(probas_df[f'proba {label}'] - q3_score_negative).abs().nsmallest(1).index]
-            q3_negative_query_tuple = (q3_negative_query_df['original_sentence'].values[0], q3_negative_query_df['cleaned_sentence'].values[0], q3_negative_query_df[f'proba {label}'].values[0])
+            q3_negative_query_tuple = (q3_negative_query_df['original_sentence'].values[0], q3_negative_query_df[f'proba {label}'].values[0])
             # remove sampled query from probas_df
             probas_df = probas_df.drop(q3_negative_query_df.index)
 
             # sample query from bottom 10 negative (at random among bottom 10 negative)
             bottom_negative_query_df = probas_df.nsmallest(10, f'proba {label}').sample(n=1)
-            bottom_negative_query_tuple = (bottom_negative_query_df['original_sentence'].values[0], bottom_negative_query_df['cleaned_sentence'].values[0], bottom_negative_query_df[f'proba {label}'].values[0])
+            bottom_negative_query_tuple = (bottom_negative_query_df['original_sentence'].values[0], bottom_negative_query_df[f'proba {label}'].values[0])
             # remove sampled query from probas_df
             probas_df = probas_df.drop(bottom_negative_query_df.index)
 
@@ -93,9 +93,9 @@ def _generate_samples_csvs(probas_df, scores_df):
             probas_df = probas_df.drop(fn_bottom_examples_df.index)
             
             # create list of tuples (sentences, proba)
-            tp_examples_tuples = list(zip(tp_top_examples_df['original_sentence'], tp_top_examples_df['cleaned_sentence'], tp_top_examples_df[f'proba {label}'])) + list(zip(tp_q1_examples_df['original_sentence'], tp_q1_examples_df['cleaned_sentence'], tp_q1_examples_df[f'proba {label}']))
-            fp_examples_tuples = list(zip(fp_top_examples_df['original_sentence'], fp_top_examples_df['cleaned_sentence'], fp_top_examples_df[f'proba {label}'])) + list(zip(fp_q1_examples_df['original_sentence'], fp_q1_examples_df['cleaned_sentence'], fp_q1_examples_df[f'proba {label}']))
-            fn_examples_tuples = list(zip(fn_q3_examples_df['original_sentence'], fn_q3_examples_df['cleaned_sentence'], fn_q3_examples_df[f'proba {label}'])) + list(zip(fn_bottom_examples_df['original_sentence'], fn_bottom_examples_df['cleaned_sentence'], fn_bottom_examples_df[f'proba {label}']))
+            tp_examples_tuples = list(zip(tp_top_examples_df['original_sentence'], tp_top_examples_df[f'proba {label}'])) + list(zip(tp_q1_examples_df['original_sentence'], tp_q1_examples_df[f'proba {label}']))
+            fp_examples_tuples = list(zip(fp_top_examples_df['original_sentence'], fp_top_examples_df[f'proba {label}'])) + list(zip(fp_q1_examples_df['original_sentence'], fp_q1_examples_df[f'proba {label}']))
+            fn_examples_tuples = list(zip(fn_q3_examples_df['original_sentence'], fn_q3_examples_df[f'proba {label}'])) + list(zip(fn_bottom_examples_df['original_sentence'], fn_bottom_examples_df[f'proba {label}']))
 
             if len(tp_examples_tuples) < 8 or len(fp_examples_tuples) < 4 or len(fn_examples_tuples) < 4:
                 valid_sampling = False

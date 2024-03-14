@@ -1,3 +1,4 @@
+import torch
 import re
 from eli5 import format_as_dict
 from eli5.lime import TextExplainer
@@ -20,12 +21,16 @@ def _run_lime(pipeline, labels, sentence, lime_optimized):
     if lime_optimized:
         n_samples_list = [300, 1000, 2000, 3000, 4000, 5000]
     else:
-        n_samples_list = [1500] # keep low to avoid CUDA out of memory error
+        n_samples_list = [300] # keep low to avoid CUDA out of memory error
 
     best_score = 0
     best_dict = {}
 
     for n_samples in n_samples_list:
+        # clear GPU memory
+        # torch.cuda.empty_cache()
+        # print('emptied cache')
+
         text_explainer = TextExplainer(
             clf=_default_clf(), 
             token_pattern=r'\b\w+\b', 
