@@ -34,6 +34,7 @@ def _add_section(sentence, words, interpret_tokens, score, lime_weights, shap_we
             f.write('\n<br><br>\n')
             f.write('<h3>TRANSFORMERS-INTERPRET</h3>\n')
             f.write(_get_sentence_html(interpret_tokens, interpret_weights, is_interpret=True))
+            f.write('\n<br><br>\n')
         
 
 def _get_html_span(token_or_word, weight, weight_range):

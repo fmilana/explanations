@@ -9,7 +9,7 @@ def _generate_samples_csvs(probas_df, scores_df):
     
     scores_df.set_index(scores_df.columns[0], inplace=True)
 
-    labels = [label for label in probas_df.columns[7:].tolist() if not (label.startswith('pred') or label.startswith('proba'))]
+    labels = [label for label in probas_df.columns[2:].tolist() if not (label.startswith('pred') or label.startswith('proba'))]
 
     samples_dict = {}
 
