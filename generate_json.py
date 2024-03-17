@@ -76,14 +76,51 @@ def _create_json_entry(sentence, proba, lime_weights, shap_weights, occlusion_we
         })
 
     # create interpret_parts row
+
     interpret_parts = []
-    # remove '##' from tokens and add space after each word
-    pattern = r'^##'
-    for i, (token, weight) in enumerate(interpret_weights[1:-1]): # exclude [CLS] and [SEP]
-        if not re.search(pattern, token) and i != 0:
-            interpret_parts.append({'cleaned_token': ' ', 'interpret_weight': 0.0})
-        cleaned_token = re.sub(pattern, '', token)
-        interpret_parts.append({'cleaned_token': cleaned_token, 'interpret_weight': weight})
+
+    interpret_index = 1 # exclude [CLS]
+
+    while interpret_index < len(interpret_weights) - 1: # exclude [SEP]
+        if not words_and_symbols:
+            break
+
+        token, weight = interpret_weights[interpret_index]
+
+        cleaned_token = re.sub(r'^##', '', token)
+
+        word_or_symbol = words_and_symbols[0]
+
+        if word_or_symbol.isspace():
+            interpret_parts.append({
+                'cleaned_token': ' ',
+                'interpret_weight': 0.0
+            })
+            words_and_symbols.pop(0)
+        elif cleaned_token in word_or_symbol.lower():
+            if cleaned_token == word_or_symbol.lower():
+                interpret_parts.append({
+                    'cleaned_token': word_or_symbol,
+                    'interpret_weight': weight
+                })
+                words_and_symbols.pop(0)
+            else:
+                # only get the part of the word that matches the token
+                match = re.search(cleaned_token, word_or_symbol.lower())
+
+                interpret_parts.append({
+                    'cleaned_token': word_or_symbol[:match.end()],
+                    'interpret_weight': weight
+                })
+
+                words_and_symbols[0] = word_or_symbol[match.end():]
+            
+            interpret_index += 1 # move to the next token only when a match is found
+        else:
+            words_and_symbols.pop(0)
+
+        if words_and_symbols and not words_and_symbols[0]: # if the word is completely used up
+            words_and_symbols.pop(0)
 
     return {
         'sentence': sentence,
