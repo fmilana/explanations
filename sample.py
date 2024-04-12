@@ -23,33 +23,69 @@ def _generate_samples_csvs(probas_df, scores_df):
 
         for class_name in class_names:
             q1_score_positive = scores_df.loc['Q1 positive', class_name]
+            q2_score_positive = scores_df.loc['median positive', class_name]
+            q2_score_negative = scores_df.loc['median negative', class_name]
             q3_score_negative = scores_df.loc['Q3 negative', class_name]
 
-            # queries
+            # # queries (old)
 
-            # sample query from top 10 positive (at random among top 10 positive)
-            top_positive_query_df = probas_df.nlargest(10, f'proba {class_name}').sample(n=1)
-            top_positive_query_tuple = (top_positive_query_df['original_sentence'].values[0], top_positive_query_df['cleaned_sentence'].values[0], top_positive_query_df[f'proba {class_name}'].values[0])
-            # remove sampled query from probas_df
-            probas_df = probas_df.drop(top_positive_query_df.index)
+            # # sample query from top 10 positive (at random among top 10 positive)
+            # top_positive_query_df = probas_df.nlargest(10, f'proba {class_name}').sample(n=1)
+            # top_positive_query_tuple = (top_positive_query_df['original_sentence'].values[0], top_positive_query_df['cleaned_sentence'].values[0], top_positive_query_df[f'proba {class_name}'].values[0])
+            # # remove sampled query from probas_df
+            # probas_df = probas_df.drop(top_positive_query_df.index)
 
-            # sample query from around q1 positive (closest to q1 positive)
-            q1_positive_query_df = probas_df.loc[(probas_df[f'proba {class_name}'] - q1_score_positive).abs().nsmallest(1).index]
-            q1_positive_query_tuple = (q1_positive_query_df['original_sentence'].values[0], q1_positive_query_df['cleaned_sentence'].values[0], q1_positive_query_df[f'proba {class_name}'].values[0])
-            # remove sampled query from probas_df
-            probas_df = probas_df.drop(q1_positive_query_df.index)
+            # # sample query from around q1 positive (closest to q1 positive)
+            # q1_positive_query_df = probas_df.loc[(probas_df[f'proba {class_name}'] - q1_score_positive).abs().nsmallest(1).index]
+            # q1_positive_query_tuple = (q1_positive_query_df['original_sentence'].values[0], q1_positive_query_df['cleaned_sentence'].values[0], q1_positive_query_df[f'proba {class_name}'].values[0])
+            # # remove sampled query from probas_df
+            # probas_df = probas_df.drop(q1_positive_query_df.index)
 
-            # sample query from around q3 negative (closest to q3 negative)
-            q3_negative_query_df = probas_df.loc[(probas_df[f'proba {class_name}'] - q3_score_negative).abs().nsmallest(1).index]
-            q3_negative_query_tuple = (q3_negative_query_df['original_sentence'].values[0], q3_negative_query_df['cleaned_sentence'].values[0], q3_negative_query_df[f'proba {class_name}'].values[0])
-            # remove sampled query from probas_df
-            probas_df = probas_df.drop(q3_negative_query_df.index)
+            # # sample query from around q3 negative (closest to q3 negative)
+            # q3_negative_query_df = probas_df.loc[(probas_df[f'proba {class_name}'] - q3_score_negative).abs().nsmallest(1).index]
+            # q3_negative_query_tuple = (q3_negative_query_df['original_sentence'].values[0], q3_negative_query_df['cleaned_sentence'].values[0], q3_negative_query_df[f'proba {class_name}'].values[0])
+            # # remove sampled query from probas_df
+            # probas_df = probas_df.drop(q3_negative_query_df.index)
 
-            # sample query from bottom 10 negative (at random among bottom 10 negative)
-            bottom_negative_query_df = probas_df.nsmallest(10, f'proba {class_name}').sample(n=1)
-            bottom_negative_query_tuple = (bottom_negative_query_df['original_sentence'].values[0], bottom_negative_query_df['cleaned_sentence'].values[0], bottom_negative_query_df[f'proba {class_name}'].values[0])
+            # # sample query from bottom 10 negative (at random among bottom 10 negative)
+            # bottom_negative_query_df = probas_df.nsmallest(10, f'proba {class_name}').sample(n=1)
+            # bottom_negative_query_tuple = (bottom_negative_query_df['original_sentence'].values[0], bottom_negative_query_df['cleaned_sentence'].values[0], bottom_negative_query_df[f'proba {class_name}'].values[0])
+            # # remove sampled query from probas_df
+            # probas_df = probas_df.drop(bottom_negative_query_df.index)
+
+            # queries (new)
+
+            false_positive_df = probas_df[(probas_df[class_name] == 0) & (probas_df[f'pred {class_name}'] == 1)]
+
+            # sample query from Q1 false positives (closest to q1 positive)
+            q1_fp_query_df = false_positive_df.loc[(false_positive_df[f'proba {class_name}'] - q1_score_positive).abs().nsmallest(1).index]
+            q1_fp_query_tuple = (q1_fp_query_df['original_sentence'].values[0], q1_fp_query_df['cleaned_sentence'].values[0], q1_fp_query_df[f'proba {class_name}'].values[0])
             # remove sampled query from probas_df
-            probas_df = probas_df.drop(bottom_negative_query_df.index)
+            probas_df = probas_df.drop(q1_fp_query_df.index)
+
+            false_positive_df = probas_df[(probas_df[class_name] == 0) & (probas_df[f'pred {class_name}'] == 1)]
+
+            # sample query from median false positives (closest to q2 positive)
+            median_fp_query_df = false_positive_df.loc[(false_positive_df[f'proba {class_name}'] - q2_score_positive).abs().nsmallest(1).index]
+            median_fp_query_tuple = (median_fp_query_df['original_sentence'].values[0], median_fp_query_df['cleaned_sentence'].values[0], median_fp_query_df[f'proba {class_name}'].values[0])
+            # remove sampled query from probas_df
+            probas_df = probas_df.drop(median_fp_query_df.index)
+
+            false_negative_df = probas_df[(probas_df[class_name] == 1) & (probas_df[f'pred {class_name}'] == 0)]
+
+            # sample query from median false negatives (closest to q2 negative)
+            median_fn_query_df = false_negative_df.loc[(false_negative_df[f'proba {class_name}'] - q2_score_negative).abs().nsmallest(1).index]
+            median_fn_query_tuple = (median_fn_query_df['original_sentence'].values[0], median_fn_query_df['cleaned_sentence'].values[0], median_fn_query_df[f'proba {class_name}'].values[0])
+            # remove sampled query from probas_df
+            probas_df = probas_df.drop(median_fn_query_df.index)
+
+            false_negative_df = probas_df[(probas_df[class_name] == 1) & (probas_df[f'pred {class_name}'] == 0)]
+
+            # sample query from Q3 false negatives (closest to q3 negative)
+            q3_fn_query_df = false_negative_df.loc[(false_negative_df[f'proba {class_name}'] - q3_score_negative).abs().nsmallest(1).index]
+            q3_fn_query_tuple = (q3_fn_query_df['original_sentence'].values[0], q3_fn_query_df['cleaned_sentence'].values[0], q3_fn_query_df[f'proba {class_name}'].values[0])
+            # remove sampled query from probas_df
+            probas_df = probas_df.drop(q3_fn_query_df.index)
 
             # examples
 
@@ -110,10 +146,10 @@ def _generate_samples_csvs(probas_df, scores_df):
                 'TP Examples Tuples': tp_examples_tuples,
                 'FP Examples Tuples': fp_examples_tuples,
                 'FN Examples Tuples': fn_examples_tuples,
-                'Top Positive Query Tuple': top_positive_query_tuple,
-                'Q1 Positive Query Tuple': q1_positive_query_tuple,
-                'Q3 Negative Query Tuple': q3_negative_query_tuple,
-                'Bottom Negative Query Tuple': bottom_negative_query_tuple
+                'Q1 False Positive Query Tuple': q1_fp_query_tuple,
+                'Median False Positive Query Tuple': median_fp_query_tuple,
+                'Median False Negative Query Tuple': median_fn_query_tuple,
+                'Q3 False Negative Query Tuple': q3_fn_query_tuple
             }
 
         if valid_sampling:

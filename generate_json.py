@@ -16,7 +16,7 @@ def _load_samples_as_dict(samples_df):
     # define rows that contain lists of tuples
     list_of_tuples_rows = ['TP Examples Tuples', 'FP Examples Tuples', 'FN Examples Tuples']
     # define rows that contain single tuples
-    tuples_rows = ['Top Positive Query Tuple', 'Q1 Positive Query Tuple', 'Q3 Negative Query Tuple', 'Bottom Negative Query Tuple']
+    tuples_rows = ['Q1 False Positive Query Tuple', 'Median False Positive Query Tuple', 'Median False Negative Query Tuple', 'Q3 False Negative Query Tuple']
     # convert the strings in the list_of_tuples_rows back into lists of tuples
     for row in list_of_tuples_rows:
         samples_df.loc[row] = samples_df.loc[row].apply(ast.literal_eval)
@@ -78,10 +78,10 @@ def _generate_file(clf, samples_df, json_path, lime_optimized):
         tp_examples_tuples = samples_dict[class_name]['TP Examples Tuples']
         fp_examples_tuples = samples_dict[class_name]['FP Examples Tuples']
         fn_examples_tuples = samples_dict[class_name]['FN Examples Tuples']
-        top_positive_query_tuple = samples_dict[class_name]['Top Positive Query Tuple']
-        q1_positive_query_tuple = samples_dict[class_name]['Q1 Positive Query Tuple']
-        q3_negative_query_tuple = samples_dict[class_name]['Q3 Negative Query Tuple']
-        bottom_negative_query_tuple = samples_dict[class_name]['Bottom Negative Query Tuple']
+        q1_fp_query_tuple = samples_dict[class_name]['Q1 False Positive Query Tuple']
+        median_fp_query_tuple = samples_dict[class_name]['Median False Positive Query Tuple']
+        median_fn_query_tuple = samples_dict[class_name]['Median False Negative Query Tuple']
+        q3_fn_query_tuple = samples_dict[class_name]['Q3 False Negative Query Tuple']
 
         titles = ['True Positives', 'False Positives', 'False Negatives']
 
@@ -93,8 +93,8 @@ def _generate_file(clf, samples_df, json_path, lime_optimized):
                 print(f'{progress_counter+1}/{total_number_of_sentences} sentences processed.', end='\r')
                 progress_counter += 1
 
-        titles = ['Top Positive', 'Q1 Positive', 'Q3 Negative', 'Bottom Negative']
-        tuples_list = [top_positive_query_tuple, q1_positive_query_tuple, q3_negative_query_tuple, bottom_negative_query_tuple]
+        titles = ['Q1 False Positive', 'Median False Positive', 'Median False Negative', 'Q3 False Negative']
+        tuples_list = [q1_fp_query_tuple, median_fp_query_tuple, median_fn_query_tuple, q3_fn_query_tuple]
         zipped_list = list(zip(titles, tuples_list))
         # shuffle queries
         random.shuffle(zipped_list)
@@ -112,8 +112,8 @@ def _generate_file(clf, samples_df, json_path, lime_optimized):
 
 if __name__ == '__main__':
     try:
-        probas_df = pd.read_csv('results/probas.csv')
-        scores_df = pd.read_csv('results/scores.csv')
+        # probas_df = pd.read_csv('results/probas.csv')
+        # scores_df = pd.read_csv('results/scores.csv')
         clf = joblib.load('model/model.sav')
         sampled_df = pd.read_csv('results/samples.csv', index_col=0)
         print('Generating JSON...')
