@@ -53,55 +53,62 @@ def _generate_probas_csv(test_df, class_names, Y_test_prob):
 
 
 def _generate_scores_csv(class_names, test_df, average_best_thresholds_per_class):
-    index = ['threshold', 
+    index = ['threshold',
              'Q1 positive', 
              'median positive', 
              'Q3 positive', 
-             'mean positive', 
+             'upper median',
+             'lower median',
              'Q1 negative', 
              'median negative', 
-             'Q3 negative', 
-             'mean negative']
+             'Q3 negative']
 
     scores_df = pd.DataFrame(index=index, columns=class_names)
 
     scores_df.loc['threshold'] = [threshold for threshold in average_best_thresholds_per_class]
 
     scores_dict = {}
-
-    for class_name in class_names:
+ 
+    for class_name, threshold in zip(class_names, average_best_thresholds_per_class):
         positive_class_df = test_df[test_df[f'pred {class_name}'] == 1]
         negative_class_df = test_df[test_df[f'pred {class_name}'] == 0]
 
         Q1_positive = positive_class_df[f'proba {class_name}'].quantile(0.25)
         median_positive = positive_class_df[f'proba {class_name}'].median()
         Q3_positive = positive_class_df[f'proba {class_name}'].quantile(0.75)
-        mean_positive = positive_class_df[f'proba {class_name}'].mean()
         Q1_negative = negative_class_df[f'proba {class_name}'].quantile(0.25)
         median_negative = negative_class_df[f'proba {class_name}'].median()
         Q3_negative = negative_class_df[f'proba {class_name}'].quantile(0.75)
         mean_negative = negative_class_df[f'proba {class_name}'].mean()
 
+        upper_median_df = positive_class_df[(positive_class_df[f'proba {class_name}'] >= threshold) & 
+                                            (positive_class_df[f'proba {class_name}'] <= Q1_positive)]
+        upper_median = upper_median_df[f'proba {class_name}'].median()
+
+        lower_median_df = negative_class_df[(negative_class_df[f'proba {class_name}'] >= Q3_negative) & 
+                                            (negative_class_df[f'proba {class_name}'] <= threshold)]
+        lower_median = lower_median_df[f'proba {class_name}'].median()
+
         scores_dict[class_name] = {
             'Q1 positive': Q1_positive,
             'median positive': median_positive,
             'Q3 positive': Q3_positive,
-            'mean positive': mean_positive,
+            'upper median': upper_median,
+            'lower median': lower_median,
             'Q1 negative': Q1_negative,
             'median negative': median_negative,
-            'Q3 negative': Q3_negative,
-            'mean negative': mean_negative
+            'Q3 negative': Q3_negative
         }
 
     for class_name in class_names:
         scores_df.loc['Q1 positive', class_name] = scores_dict[class_name]['Q1 positive']
         scores_df.loc['median positive', class_name] = scores_dict[class_name]['median positive']
         scores_df.loc['Q3 positive', class_name] = scores_dict[class_name]['Q3 positive']
-        scores_df.loc['mean positive', class_name] = scores_dict[class_name]['mean positive']
+        scores_df.loc['upper median', class_name] = scores_dict[class_name]['upper median']
+        scores_df.loc['lower median', class_name] = scores_dict[class_name]['lower median']
         scores_df.loc['Q1 negative', class_name] = scores_dict[class_name]['Q1 negative']
         scores_df.loc['median negative', class_name] = scores_dict[class_name]['median negative']
         scores_df.loc['Q3 negative', class_name] = scores_dict[class_name]['Q3 negative']
-        scores_df.loc['mean negative', class_name] = scores_dict[class_name]['mean negative']
                                                                         
     scores_df.to_csv('results/scores.csv')
 
@@ -231,12 +238,15 @@ def _train_and_validate(df):
     # calculate overall test score using average best thresholds
     test_score = f1_score(Y_test, Y_test_pred, average='weighted')
 
-    print(f'===============TEST RESULTS===============')
-    print(f'test F1 Scores per class using 0.5 threshold: {base_test_scores_per_class}')
-    print(f'test F1 Scores per class using average best thresholds: {test_scores_per_class}')
-    print(f'base test F1 Score using 0.5 threshold: {base_test_score}')
-    print(f'test F1 Score using average best thresholds ({average_best_thresholds_per_class}): {test_score}')
-    print(f'==========================================')
+    with open('results/model_scores.txt', 'w') as f:
+        output = f'===============TEST RESULTS===============\n'
+        output += f'test F1 Scores per class using 0.5 threshold: {base_test_scores_per_class}\n'
+        output += f'test F1 Scores per class using average best thresholds: {test_scores_per_class}\n'
+        output += f'base test F1 Score using 0.5 threshold: {base_test_score}\n'
+        output += f'test F1 Score using average best thresholds ({average_best_thresholds_per_class}): {test_score}\n'
+        output += f'==========================================\n'
+        print(output)
+        f.write(output)
 
     # write confusion matrices to csv's
     _generate_cm_csv(test_df, class_names, Y_test_pred, Y_test)

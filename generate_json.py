@@ -14,9 +14,9 @@ from custom_pipeline import CustomPipeline
 
 def _load_samples_as_dict(samples_df):
     # define rows that contain lists of tuples
-    list_of_tuples_rows = ['TP Examples Tuples', 'FP Examples Tuples', 'FN Examples Tuples']
+    list_of_tuples_rows = ['TP Examples Dict', 'FP Examples Dict', 'FN Examples Dict']
     # define rows that contain single tuples
-    tuples_rows = ['Q1 False Positive Query Tuple', 'Median False Positive Query Tuple', 'Median False Negative Query Tuple', 'Q3 False Negative Query Tuple']
+    tuples_rows = ['Q1 False Positive Query Tuples', 'Upper Median False Positive Query Tuples', 'Lower Median False Negative Query Tuples', 'Q3 False Negative Query Tuples']
     # convert the strings in the list_of_tuples_rows back into lists of tuples
     for row in list_of_tuples_rows:
         samples_df.loc[row] = samples_df.loc[row].apply(ast.literal_eval)
@@ -71,40 +71,56 @@ def _generate_file(clf, samples_df, json_path, lime_optimized):
 
     class_names = list(samples_dict.keys())
 
-    total_number_of_sentences = sum([len(samples_dict[class_name]['TP Examples Tuples']) + len(samples_dict[class_name]['FP Examples Tuples']) + len(samples_dict[class_name]['FN Examples Tuples']) + 4 for class_name in class_names])
+    total_number_of_sentences = sum(
+        len(samples_dict[class_name]['TP Examples Dict']['Top']) +
+        len(samples_dict[class_name]['TP Examples Dict']['Q1']) +
+        len(samples_dict[class_name]['FP Examples Dict']['Top']) +
+        len(samples_dict[class_name]['FP Examples Dict']['Q1']) +
+        len(samples_dict[class_name]['FN Examples Dict']['Q3']) +
+        len(samples_dict[class_name]['FN Examples Dict']['Bottom']) +
+        len(samples_dict[class_name]['Q1 False Positive Query Tuples']) +
+        len(samples_dict[class_name]['Upper Median False Positive Query Tuples']) +
+        len(samples_dict[class_name]['Lower Median False Negative Query Tuples']) +
+        len(samples_dict[class_name]['Q3 False Negative Query Tuples'])
+        for class_name in class_names
+    )
     progress_counter = 0
 
     for class_name in class_names:
-        tp_examples_tuples = samples_dict[class_name]['TP Examples Tuples']
-        fp_examples_tuples = samples_dict[class_name]['FP Examples Tuples']
-        fn_examples_tuples = samples_dict[class_name]['FN Examples Tuples']
-        q1_fp_query_tuple = samples_dict[class_name]['Q1 False Positive Query Tuple']
-        median_fp_query_tuple = samples_dict[class_name]['Median False Positive Query Tuple']
-        median_fn_query_tuple = samples_dict[class_name]['Median False Negative Query Tuple']
-        q3_fn_query_tuple = samples_dict[class_name]['Q3 False Negative Query Tuple']
+        tp_examples_dict = samples_dict[class_name]['TP Examples Dict']
+        fp_examples_dict = samples_dict[class_name]['FP Examples Dict']
+        fn_examples_dict = samples_dict[class_name]['FN Examples Dict']
+        q1_fp_query_tuples = samples_dict[class_name]['Q1 False Positive Query Tuples']
+        upper_median_fp_query_tuples = samples_dict[class_name]['Upper Median False Positive Query Tuples']
+        lower_median_fn_query_tuples = samples_dict[class_name]['Lower Median False Negative Query Tuples']
+        q3_fn_query_tuples = samples_dict[class_name]['Q3 False Negative Query Tuples']
 
         titles = ['True Positives', 'False Positives', 'False Negatives']
 
-        for i, list_of_tuples in enumerate([tp_examples_tuples, fp_examples_tuples, fn_examples_tuples]):
-            for j, (sentence, cleaned_sentence, proba) in enumerate(list_of_tuples):
+        examples_dicts = [tp_examples_dict, fp_examples_dict, fn_examples_dict]
+
+        for i, title in enumerate(titles):
+            examples_dict = examples_dicts[i]
+
+            for key, list_of_tuples in examples_dict.items():
+                for j, (sentence, cleaned_sentence, proba) in enumerate(list_of_tuples):
+                    lime_weights, shap_weights, occlusion_weights = _get_all_weights(pipeline, class_names, cleaned_sentence, class_name, proba, lime_optimized)
+                    json_dict[f'{class_name} {key} {title} {j+1}'] = _create_json_entry(sentence, cleaned_sentence, proba, lime_weights, shap_weights, occlusion_weights)
+                    
+                    print(f'{progress_counter+1}/{total_number_of_sentences} sentences processed.', end='\r')
+                    progress_counter += 1
+
+        titles = ['Q1 False Positive Query', 'Upper Median False Positive Query', 'Lower Median False Negative Query', 'Q3 False Negative Query']
+        query_tuples_list = [q1_fp_query_tuples, upper_median_fp_query_tuples, lower_median_fn_query_tuples, q3_fn_query_tuples]
+
+        for title, query_tuples in zip(titles, query_tuples_list):
+            random.shuffle(query_tuples)
+            for i, (sentence, cleaned_sentence, proba) in enumerate(query_tuples):
                 lime_weights, shap_weights, occlusion_weights = _get_all_weights(pipeline, class_names, cleaned_sentence, class_name, proba, lime_optimized)
-                json_dict[f'{class_name} {titles[i]} {j}'] = _create_json_entry(sentence, cleaned_sentence, proba, lime_weights, shap_weights, occlusion_weights)
+                json_dict[f'{class_name} {title} {i+1}'] = _create_json_entry(sentence, cleaned_sentence, proba, lime_weights, shap_weights, occlusion_weights)
 
                 print(f'{progress_counter+1}/{total_number_of_sentences} sentences processed.', end='\r')
                 progress_counter += 1
-
-        titles = ['Q1 False Positive', 'Median False Positive', 'Median False Negative', 'Q3 False Negative']
-        tuples_list = [q1_fp_query_tuple, median_fp_query_tuple, median_fn_query_tuple, q3_fn_query_tuple]
-        zipped_list = list(zip(titles, tuples_list))
-        # shuffle queries
-        random.shuffle(zipped_list)
-
-        for (title, (sentence, cleaned_sentence, proba)) in zipped_list:
-            lime_weights, shap_weights, occlusion_weights = _get_all_weights(pipeline, class_names, cleaned_sentence, class_name, proba, lime_optimized)
-            json_dict[f'{class_name} {title} Query'] = _create_json_entry(sentence, cleaned_sentence, proba, lime_weights, shap_weights, occlusion_weights)
-
-            print(f'{progress_counter+1}/{total_number_of_sentences} sentences processed.', end='\r')
-            progress_counter += 1
 
     with open(json_path, 'w', encoding='utf-8') as f:
         json.dump(json_dict, f, indent=4, ensure_ascii=False)
@@ -112,8 +128,6 @@ def _generate_file(clf, samples_df, json_path, lime_optimized):
 
 if __name__ == '__main__':
     try:
-        # probas_df = pd.read_csv('results/probas.csv')
-        # scores_df = pd.read_csv('results/scores.csv')
         clf = joblib.load('model/model.sav')
         sampled_df = pd.read_csv('results/samples.csv', index_col=0)
         print('Generating JSON...')
