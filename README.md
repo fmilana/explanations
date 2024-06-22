@@ -23,6 +23,9 @@ export CPPFLAGS="-I/usr/local/opt/openssl/include"
 ```
 
 ### On Windows:
+Follow [this guide](https://stackoverflow.com/questions/73969269/error-could-not-build-wheels-for-hnswlib-which-is-required-to-install-pyprojec)
+
+Then:
 
 ```
 conda env create -f envs/expenv_win.yml
