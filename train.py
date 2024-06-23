@@ -133,6 +133,7 @@ def _train_and_validate(df):
     # set test size
     test_size = 5 # arbitrary
     # randomly select 5 test ids
+    random.seed(42)
     test_ids = random.sample(review_ids, test_size)
     # create test df based on test ids
     test_df = df[df['review_id'].isin(test_ids)]
