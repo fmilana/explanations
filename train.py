@@ -47,68 +47,23 @@ def _generate_probas_csv(test_df, class_names, Y_test_prob):
     proba_df = pd.DataFrame(Y_test_prob, columns=[f'proba {class_names}' for i, class_names in enumerate(class_names)])
     test_df = test_df.reset_index(drop=True)
     test_df = pd.concat([test_df, proba_df], axis=1)
-    test_df.to_csv('results/probas.csv', index=False)
+    test_df.to_csv('results/test_probas.csv', index=False)
 
     return test_df
 
 
 def _generate_scores_csv(class_names, test_df, average_best_thresholds_per_class):
     index = ['threshold',
-             'Q1 positive', 
-             'median positive', 
-             'Q3 positive', 
-             'upper median',
-             'lower median',
-             'Q1 negative', 
-             'median negative', 
-             'Q3 negative']
+             'upper midpoint',
+             'lower midpoint']
 
     scores_df = pd.DataFrame(index=index, columns=class_names)
 
     scores_df.loc['threshold'] = [threshold for threshold in average_best_thresholds_per_class]
-
-    scores_dict = {}
  
     for class_name, threshold in zip(class_names, average_best_thresholds_per_class):
-        positive_class_df = test_df[test_df[f'pred {class_name}'] == 1]
-        negative_class_df = test_df[test_df[f'pred {class_name}'] == 0]
-
-        Q1_positive = positive_class_df[f'proba {class_name}'].quantile(0.25)
-        median_positive = positive_class_df[f'proba {class_name}'].median()
-        Q3_positive = positive_class_df[f'proba {class_name}'].quantile(0.75)
-        Q1_negative = negative_class_df[f'proba {class_name}'].quantile(0.25)
-        median_negative = negative_class_df[f'proba {class_name}'].median()
-        Q3_negative = negative_class_df[f'proba {class_name}'].quantile(0.75)
-        mean_negative = negative_class_df[f'proba {class_name}'].mean()
-
-        upper_median_df = positive_class_df[(positive_class_df[f'proba {class_name}'] >= threshold) & 
-                                            (positive_class_df[f'proba {class_name}'] <= Q1_positive)]
-        upper_median = upper_median_df[f'proba {class_name}'].median()
-
-        lower_median_df = negative_class_df[(negative_class_df[f'proba {class_name}'] >= Q3_negative) & 
-                                            (negative_class_df[f'proba {class_name}'] <= threshold)]
-        lower_median = lower_median_df[f'proba {class_name}'].median()
-
-        scores_dict[class_name] = {
-            'Q1 positive': Q1_positive,
-            'median positive': median_positive,
-            'Q3 positive': Q3_positive,
-            'upper median': upper_median,
-            'lower median': lower_median,
-            'Q1 negative': Q1_negative,
-            'median negative': median_negative,
-            'Q3 negative': Q3_negative
-        }
-
-    for class_name in class_names:
-        scores_df.loc['Q1 positive', class_name] = scores_dict[class_name]['Q1 positive']
-        scores_df.loc['median positive', class_name] = scores_dict[class_name]['median positive']
-        scores_df.loc['Q3 positive', class_name] = scores_dict[class_name]['Q3 positive']
-        scores_df.loc['upper median', class_name] = scores_dict[class_name]['upper median']
-        scores_df.loc['lower median', class_name] = scores_dict[class_name]['lower median']
-        scores_df.loc['Q1 negative', class_name] = scores_dict[class_name]['Q1 negative']
-        scores_df.loc['median negative', class_name] = scores_dict[class_name]['median negative']
-        scores_df.loc['Q3 negative', class_name] = scores_dict[class_name]['Q3 negative']
+        scores_df.loc['upper midpoint', class_name] = (threshold + 1) / 2
+        scores_df.loc['lower midpoint', class_name] = threshold / 2
                                                                         
     scores_df.to_csv('results/scores.csv')
 
@@ -256,14 +211,38 @@ def _train_and_validate(df):
     # write scores to csv
     _generate_scores_csv(class_names, test_df, average_best_thresholds_per_class)
 
-    return clf
+    # return the trained classifier and the full training set (excluding test set)
+    return clf, df
+
+
+# predict on training set from which to sample example sentences later
+def _predict_train_samples(clf, df):
+    class_names = df.columns[7:].tolist()
+    scores_df = pd.read_csv('results/scores.csv', index_col=0)
+    thresholds = {class_name: scores_df.loc['threshold', class_name] for class_name in class_names}
+
+    Y_train_prob = clf.predict_proba(np.array(df['sentence_embedding'].tolist()))
+    Y_train_pred = np.zeros_like(Y_train_prob, dtype=int)
+
+    for i, class_name in enumerate(class_names):
+        Y_train_pred[:, i] = (Y_train_prob[:, i] >= thresholds[class_name]).astype(int)
+
+    for i, class_name in enumerate(class_names):
+        df[f'pred {class_name}'] = Y_train_pred[:, i]
+
+    for i, class_name in enumerate(class_names):
+        df[f'proba {class_name}'] = Y_train_prob[:, i]
+    
+    df.to_csv('results/train_probas.csv', index=False)
 
 
 if __name__ == '__main__':
     try:
         df = pd.read_csv('data/train.csv')
         print('Training and validating model...')
-        clf = _train_and_validate(df)
+        clf, df = _train_and_validate(df)
+        print('Predicting on training set...')
+        _predict_train_samples(clf, df)
         # save the model to disk
         joblib.dump(clf, 'model/model.sav')
         print('Done. Model saved in model/model.sav.')
