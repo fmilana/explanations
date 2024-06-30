@@ -27,7 +27,7 @@ def _sample_tasks(test_probas_df, class_name, sample_type, midpoint, task_dict, 
     task_df.reset_index(drop=True, inplace=True)
 
     for index, row in task_df.iterrows():
-        task_tuple = (row['original_sentence'], row['cleaned_sentence'], row['sentence_embedding'], row[f'proba {class_name}'], 0.0)
+        task_tuple = (row['original_sentence'], row['cleaned_sentence'], row['sentence_embedding'], class_name, row[f'proba {class_name}'], 0.0)
         task_dict[f'{class_name} {sample_type} Task {index + 1}'] = task_tuple
         all_samples_dict[f'{class_name} {sample_type} Task {index + 1}'] = task_tuple
 
@@ -60,7 +60,7 @@ def _sample_examples(train_probas_df, class_name, task_name, task_tuple, task_di
 
             for example_index, example_row in examples_df.iterrows():
                 example_key = f'{task_name} {sample_type} Example {example_index + 1}'
-                example_tuple = (example_row['original_sentence'], example_row['cleaned_sentence'], example_row[f'proba {class_name}'], example_row['distance'])
+                example_tuple = (example_row['original_sentence'], example_row['cleaned_sentence'], class_name, example_row[f'proba {class_name}'], example_row['distance'])
                 all_samples_dict[example_key] = example_tuple
 
 
@@ -98,17 +98,18 @@ def _generate_samples_csvs(test_probas_df, train_probas_df, scores_df):
         task_dict = {}
 
         # remove distance column from task_tuples in all_samples_dict
-
         pattern = rf'^{re.escape(class_name)} (TP|FN|FP) Task (\d)$'
         for key in all_samples_dict.keys():
             if re.match(pattern, key):
-                original_sentence, cleaned_sentence, _, proba, distance = all_samples_dict[key]
-                all_samples_dict[key] = (original_sentence, cleaned_sentence, proba, distance)
+                original_sentence, cleaned_sentence, _, class_name, proba, distance = all_samples_dict[key]
+                all_samples_dict[key] = (original_sentence, cleaned_sentence, class_name, proba, distance)
 
     # save study samples to csv
-    samples_df = pd.DataFrame.from_dict(all_samples_dict, orient='index', columns=['original_sentence', 'cleaned_sentence', 'proba', 'distance'])
-
-    samples_df.to_csv('results/samples.csv')
+    samples_df = pd.DataFrame.from_dict(all_samples_dict, orient='index', columns=['original_sentence', 'cleaned_sentence', 'class_name', 'proba', 'distance'])
+    # reset the index to turn it into a column, and add the "name" column
+    samples_df.reset_index(inplace=True)
+    samples_df.rename(columns={'index': 'name'}, inplace=True)
+    samples_df.to_csv('results/samples.csv', index=False)
     print('Samples saved to results/samples.csv')
 
 
@@ -123,6 +124,8 @@ if __name__ == '__main__':
                 .replace(']',''), sep=' '
             )
         )
+        # remove rows with less than 3 words when cleaned (to avoid LIME ZeroDivisionError)
+        test_probas_df = test_probas_df[test_probas_df['cleaned_sentence'].apply(lambda x: len(x.split()) > 2)]
 
         train_probas_df = pd.read_csv('results/train_probas.csv')
         train_probas_df.loc[:, 'sentence_embedding'] = train_probas_df['sentence_embedding'].apply(
@@ -133,6 +136,8 @@ if __name__ == '__main__':
                 .replace(']',''), sep=' '
             )
         )
+        # remove rows with less than 3 words when cleaned (to avoid LIME ZeroDivisionError)
+        train_probas_df = train_probas_df[train_probas_df['cleaned_sentence'].apply(lambda x: len(x.split()) > 2)]
 
         scores_df = pd.read_csv('results/scores.csv')
         print('Sampling sentences...')
