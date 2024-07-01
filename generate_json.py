@@ -8,7 +8,7 @@ from lime_explain import get_lime_weights
 from occlusion_explain import get_occlusion_weights
 from shap_explain import get_shap_weights
 from custom_pipeline import CustomPipeline
-from pipeline_tokenizer import Sentence2Tokens
+from vectorizer import Sentence2Embedding
 from classifier import MultiLabelProbClassifier
 
 
@@ -36,7 +36,7 @@ def _get_agnostic_weights(pipeline, labels, sentence, label, proba, lime_optimiz
     return lime_weights, shap_weights, occlusion_weights
 
 
-def _create_json_entry(sentence, proba, tokenizer, lime_weights, shap_weights, occlusion_weights, interpret_weights):
+def _create_json_entry(sentence, proba, lime_weights, shap_weights, occlusion_weights, interpret_weights):
     # extract words from sentence (including punctuation, symbols and whitespace)
     words_and_symbols = re.findall(r'(\W|\w+)', sentence)
 
@@ -77,10 +77,6 @@ def _create_json_entry(sentence, proba, tokenizer, lime_weights, shap_weights, o
 
     # create interpret_parts row
 
-    if sentence == 'For £10.50 you can get mapo tofu with chicken wings.':
-        print('sentence:', sentence)
-        print(f'{len(interpret_weights)} interpret_weights: {interpret_weights}')
-
     interpret_parts = []
 
     interpret_index = 1 # exclude [CLS]
@@ -95,31 +91,20 @@ def _create_json_entry(sentence, proba, tokenizer, lime_weights, shap_weights, o
 
         word_or_symbol = words_and_symbols[0]
 
-        if sentence == 'For £10.50 you can get mapo tofu with chicken wings.':
-            print(f'checking cleaned_token "{cleaned_token}" against word_or_symbol.lower() "{word_or_symbol.lower()}"')
-
         if word_or_symbol.isspace():
-            if sentence == 'For £10.50 you can get mapo tofu with chicken wings.':
-                print(f'word_or_symbol "{word_or_symbol}" is a space')
             interpret_parts.append({
                 'cleaned_token': ' ',
                 'interpret_weight': 0.0
             })
             words_and_symbols.pop(0)
         elif cleaned_token in word_or_symbol.lower():
-            if sentence == 'For £10.50 you can get mapo tofu with chicken wings.':
-                print(f'word_or_symbol "{word_or_symbol}" is not a space and cleaned_token "{cleaned_token}" is in it')
             if cleaned_token == word_or_symbol.lower():
-                if sentence == 'For £10.50 you can get mapo tofu with chicken wings.':
-                    print(f'cleaned_token "{cleaned_token}" is the same as word_or_symbol "{word_or_symbol.lower()}"')
                 interpret_parts.append({
                     'cleaned_token': word_or_symbol,
                     'interpret_weight': weight
                 })
                 words_and_symbols.pop(0)
             else:
-                if sentence == 'For £10.50 you can get mapo tofu with chicken wings.':
-                    print(f'cleaned_token "{cleaned_token}" is not the same as word_or_symbol "{word_or_symbol.lower()}"')
                 # only get the part of the word that matches the token
                 match = re.search(cleaned_token, word_or_symbol.lower())
 
@@ -132,45 +117,10 @@ def _create_json_entry(sentence, proba, tokenizer, lime_weights, shap_weights, o
             
             interpret_index += 1 # move to the next token only when a match is found
         else:
-            if sentence == 'For £10.50 you can get mapo tofu with chicken wings.':
-                print(f'word_or_symbol "{word_or_symbol}" is not a space and cleaned_token "{cleaned_token}" is not in it')
             words_and_symbols.pop(0)
 
         if words_and_symbols and not words_and_symbols[0]: # if the word is completely used up
             words_and_symbols.pop(0)
-
-    # interpret_weights = interpret_weights[1: -1] # exclude [CLS] and [SEP]
-    # words_and_symbols = tokenizer.tokenize(sentence)
-    
-    # words_and_symbols = words_and_symbols
-
-    # interpret_parts = []
-    # interpret_index = 0
-
-    # if sentence == 'For £10.50 you can get mapo tofu with chicken wings.':
-    #     print(f'{len(words_and_symbols)} words_and_symbols: {words_and_symbols}')
-    #     print(f'{len(interpret_weights)} interpret_weights: {interpret_weights}')
-
-    # while interpret_index < len(interpret_weights):
-    #     if not words_and_symbols:
-    #         break
-
-    #     token, weight = interpret_weights[interpret_index]
-    #     cleaned_token = re.sub(r'^##', '', token)
-
-    #     word_or_symbol = words_and_symbols[0]
-
-    #     if word_or_symbol.isspace():
-    #         interpret_parts.append({
-    #             'cleaned_token': ' ',
-    #             'interpret_weight': 0.0
-    #         })
-    #         words_and_symbols.pop(0)
-
-
-
-    #     interpret_index += 1
-
 
     return {
         'sentence': sentence,
@@ -185,7 +135,7 @@ def _generate_file(classifier, samples_df, json_path, lime_optimized):
 
     json_dict = {}
 
-    pipeline = CustomPipeline(steps=[('tokenizer', Sentence2Tokens(classifier.tokenizer)), ('classifier', classifier)])
+    pipeline = CustomPipeline(steps=[('vectorizer', Sentence2Embedding()), ('classifier', classifier)])
 
     labels = list(samples_dict.keys())
 
@@ -211,7 +161,7 @@ def _generate_file(classifier, samples_df, json_path, lime_optimized):
                 interpret_weights = classifier.get_interpret_weights(sentence, label)
 
                 key = f'{label} {example_titles[i]} {j}'
-                json_dict[key] = _create_json_entry(sentence, proba, classifier.tokenizer, lime_weights, shap_weights, occlusion_weights, interpret_weights)
+                json_dict[key] = _create_json_entry(sentence, proba, lime_weights, shap_weights, occlusion_weights, interpret_weights)
 
                 print(f'{progress_counter+1}/{total_number_of_sentences} sentences processed.', end='\r')
                 progress_counter += 1
@@ -226,7 +176,7 @@ def _generate_file(classifier, samples_df, json_path, lime_optimized):
             interpret_weights = classifier.get_interpret_weights(sentence, label)
             
             key = f'{label} {query_title} Query'
-            json_dict[key] = _create_json_entry(sentence, proba, classifier.tokenizer, lime_weights, shap_weights, occlusion_weights, interpret_weights)
+            json_dict[key] = _create_json_entry(sentence, proba, lime_weights, shap_weights, occlusion_weights, interpret_weights)
 
             print(f'{progress_counter+1}/{total_number_of_sentences} sentences processed.', end='\r')
             progress_counter += 1

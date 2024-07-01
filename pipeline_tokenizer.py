@@ -1,10 +1,10 @@
 from transformers import AutoModel, AutoTokenizer
 
 
-class Sentence2Tokens:
+class Sentence2Embedding:
 
-    def __init__(self, tokenizer):
-        self.tokenizer = tokenizer
+    def __init__(self):
+        self.tokenizer = AutoTokenizer.from_pretrained('models/final')
 
     
     def fit(self, X, Y):
