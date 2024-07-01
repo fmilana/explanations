@@ -4,6 +4,7 @@ import random
 import torch
 import numpy as np
 import pandas as pd
+import optuna
 from datasets import Dataset, DatasetDict
 from transformers import (
     AutoConfig,
@@ -17,12 +18,12 @@ from transformers import (
 from sklearn.model_selection import GroupKFold
 from skmultilearn.model_selection import iterative_train_test_split
 from sklearn.metrics import f1_score, roc_auc_score, accuracy_score
-from ray import tune
 
 
 MODEL_CKPT = 'distilbert-base-uncased'
 # MODEL_CKPT = 'bert-base-uncased'
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
+print(f'Using device: {DEVICE}')
 LABEL_NAMES = []
 
 best_thresholds = []
@@ -73,55 +74,17 @@ def _generate_probas_csv(test_df, y_test_probas):
 
 
 def _generate_scores_csv(test_df):
-    index = ['threshold', 
-             'Q1 positive', 
-             'median positive', 
-             'Q3 positive', 
-             'mean positive', 
-             'Q1 negative', 
-             'median negative', 
-             'Q3 negative', 
-             'mean negative']
+    index = ['threshold',
+             'upper midpoint',
+             'lower midpoint']
 
     scores_df = pd.DataFrame(index=index, columns=LABEL_NAMES)
 
     scores_df.loc['threshold'] = [threshold for threshold in best_thresholds]
 
-    scores_dict = {}
-
-    for label in LABEL_NAMES:
-        positive_class_df = test_df[test_df[f'pred {label}'] == 1]
-        negative_class_df = test_df[test_df[f'pred {label}'] == 0]
-
-        Q1_positive = positive_class_df[f'proba {label}'].quantile(0.25)
-        median_positive = positive_class_df[f'proba {label}'].median()
-        Q3_positive = positive_class_df[f'proba {label}'].quantile(0.75)
-        mean_positive = positive_class_df[f'proba {label}'].mean()
-        Q1_negative = negative_class_df[f'proba {label}'].quantile(0.25)
-        median_negative = negative_class_df[f'proba {label}'].median()
-        Q3_negative = negative_class_df[f'proba {label}'].quantile(0.75)
-        mean_negative = negative_class_df[f'proba {label}'].mean()
-
-        scores_dict[label] = {
-            'Q1 positive': Q1_positive,
-            'median positive': median_positive,
-            'Q3 positive': Q3_positive,
-            'mean positive': mean_positive,
-            'Q1 negative': Q1_negative,
-            'median negative': median_negative,
-            'Q3 negative': Q3_negative,
-            'mean negative': mean_negative
-        }
-
-    for label in LABEL_NAMES:
-        scores_df.loc['Q1 positive', label] = scores_dict[label]['Q1 positive']
-        scores_df.loc['median positive', label] = scores_dict[label]['median positive']
-        scores_df.loc['Q3 positive', label] = scores_dict[label]['Q3 positive']
-        scores_df.loc['mean positive', label] = scores_dict[label]['mean positive']
-        scores_df.loc['Q1 negative', label] = scores_dict[label]['Q1 negative']
-        scores_df.loc['median negative', label] = scores_dict[label]['median negative']
-        scores_df.loc['Q3 negative', label] = scores_dict[label]['Q3 negative']
-        scores_df.loc['mean negative', label] = scores_dict[label]['mean negative']
+    for label, threshold in zip(LABEL_NAMES, best_thresholds):
+        scores_df.loc['upper midpoint', label] = (threshold + 1) / 2
+        scores_df.loc['lower midpoint', label] = threshold / 2
                                                                         
     scores_df.to_csv('results/scores.csv')
 
@@ -153,11 +116,11 @@ def _compute_metrics(pred):
     return {'f1': f1}
 
 
-def _ray_hp_space(trial):
+def _optuna_hp_space(trial):
     return {
-        'learning_rate': tune.loguniform(1e-4, 1e-1),
-        'per_device_train_batch_size': tune.choice([8, 16, 32, 64]),
-        'weight_decay': tune.loguniform(1e-4, 1e-1),
+        'learning_rate': trial.suggest_float('learning_rate', 1e-6, 1e-4, log=True),
+        'per_device_train_batch_size': trial.suggest_categorical('per_device_train_batch_size', [16, 32, 64, 128]),
+        'weight_decay': trial.suggest_float('weight_decay', 1e-6, 1e-4, log=True)
     }
 
 
@@ -206,8 +169,8 @@ def _validate(train_df):
 
     best_run = trainer.hyperparameter_search(
         direction='maximize',
-        backend='ray',
-        hp_space=_ray_hp_space,
+        backend='optuna',
+        hp_space=_optuna_hp_space,
         n_trials=10
     )
 
@@ -351,20 +314,20 @@ if __name__ == '__main__':
         df = pd.read_csv('data/train.csv')
         df = df[df['cleaned_sentence'].notnull()]
 
-        LABEL_NAMES = df.columns[7:].to_list()
+        LABEL_NAMES = df.columns[5:].to_list()
 
         train_df, test_df = _split_on_review_ids(df)
 
         X_train = train_df[['review_id', 'original_sentence']].values
-        y_train = train_df.iloc[:, 7:].values
+        y_train = train_df.iloc[:, 5:].values
         X_test = test_df[['review_id', 'original_sentence', 'cleaned_sentence']].values
-        y_test = test_df.iloc[:, 7:].values
+        y_test = test_df.iloc[:, 5:].values
 
         # convert back to pandas dfs with label names
         train_df = pd.DataFrame({'review_id': X_train[:, 0], 'original_sentence': X_train[:, 1]})
         test_df = pd.DataFrame({'original_sentence': X_test[:, 1], 'cleaned_sentence': X_test[:, 2]})
 
-        label_columns = df.columns[7:]
+        label_columns = df.columns[5:]
 
         for i, label_column in enumerate(label_columns):
             train_df[label_column] = y_train[:, i]
@@ -392,7 +355,7 @@ if __name__ == '__main__':
         _generate_scores_csv(test_df)
         print('Scores saved in results/')
 
-        _remove_checkpoints(os.path.abspath(f'C:\\Users\\{os.getlogin()}\\ray_results'))
+        # _remove_checkpoints(os.path.abspath(f'C:\\Users\\{os.getlogin()}\\ray_results'))
         _remove_checkpoints('models/distilbert-finetuned')
         _remove_checkpoints('models/hp_search')
     except FileNotFoundError as e:
@@ -400,6 +363,6 @@ if __name__ == '__main__':
 
 
 # TODO:
-# thresholds vary greatly between splits?
-# try different transformer models
-# https://www.kaggle.com/code/thedrcat/oversampling-for-multi-label-classification
+# - thresholds vary greatly between splits?
+# - try different transformer models
+#   https://www.kaggle.com/code/thedrcat/oversampling-for-multi-label-classification

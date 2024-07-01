@@ -8,7 +8,7 @@ LIME, SHAP and Occlusion heat maps for XGBoost ClassifierChains.
 
 Install libraries in a new conda environment. 
 
-### On Mac:
+<!-- ### On Mac:
 
 ```
 conda env create -f envs/expenv_mac.yml
@@ -20,12 +20,12 @@ brew install pkg-config
 brew install mysql
 export LDFLAGS="-L/usr/local/opt/openssl/lib"
 export CPPFLAGS="-I/usr/local/opt/openssl/include"
-```
+``` -->
 
 ### On Windows:
 
 ```
-conda env create -f envs/expenv_win.yml
+conda env create -f envs/expenv_bert_win.yml
 ```
 ### Fix OmniXAI installation:
 Follow [this guide](https://github.com/tongshuangwu/polyjuice/issues/12#issuecomment-1665358584) (envs/expenv/Lib/site-packages/polyjuice/generations/generator_helpers.py).
@@ -33,8 +33,13 @@ Follow [this guide](https://github.com/tongshuangwu/polyjuice/issues/12#issuecom
 ### Activate conda environment:
 
 ```
-conda activate expenv
+conda activate expenv-bert
 ```
+
+### Install PyTorch with CUDA:
+
+https://pytorch.org/get-started/locally/
+
 
 ### Download spaCy models:
 ```

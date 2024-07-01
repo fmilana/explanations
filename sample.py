@@ -1,145 +1,190 @@
-import random
+import re
+import torch
 import pandas as pd
+import numpy as np
+from transformers import AutoModelForSequenceClassification, AutoTokenizer
+from datasets import Dataset
 
 
-def _generate_samples_csvs(probas_df, scores_df):
-    # remove sentences from probas_df with less than 5 words (when cleaned)
-    probas_df = probas_df[probas_df['original_sentence'].apply(lambda x: len(x.split()) >= 5)]
-    probas_df = probas_df.reset_index(drop=True)
+def _add_sentence_embeddings(df, model, tokenizer):
+    dataset = Dataset.from_pandas(df)
+
+    def tokenize_function(examples):
+        # Ensure 'padding' and 'truncation' are correctly applied
+        return tokenizer(examples['original_sentence'], padding='max_length', truncation=True, return_tensors='pt')
+
+    tokenized_datasets = dataset.map(tokenize_function, batched=True, batch_size=None)
+
+    def extract_embeddings(batch):
+        # Adjusted to handle pre-tokenized and batched inputs correctly
+        inputs = {k: torch.tensor(v, dtype=torch.long) for k, v in batch.items() if k in tokenizer.model_input_names}
+        inputs = {k: v.to(model.device) for k, v in inputs.items()}
+
+        model.eval()
+        with torch.no_grad():
+            outputs = model(**inputs, output_hidden_states=True)
+
+        embeddings = outputs.hidden_states[-1].mean(dim=1).cpu().numpy()
+        return {'sentence_embedding': embeddings}
+
+    tokenized_datasets = tokenized_datasets.map(extract_embeddings, batched=True)
+
+    df_with_embeddings = tokenized_datasets.to_pandas()
+
+    df['sentence_embedding'] = df_with_embeddings['sentence_embedding'].tolist()
+
+    return df
+
+
+def _add_distance_to_train_probas_df(task_tuple, train_probas_df):
+    train_probas_df_copy = train_probas_df.copy()
+    task_embedding = task_tuple[2]
+    train_probas_df_copy.loc[:, 'distance'] = pd.to_numeric(train_probas_df_copy['sentence_embedding'].apply(lambda x: np.linalg.norm(x - task_embedding)))
+
+    return train_probas_df_copy
+
+
+def _sample_tasks(test_probas_df, class_name, sample_type, midpoint, task_dict, all_samples_dict):
+    if sample_type == 'TP':
+        filtered_df = test_probas_df[(test_probas_df[class_name] == 1) & (test_probas_df[f'pred {class_name}'] == 1)]
+        num_samples = 3
+    elif sample_type == 'FN':
+        filtered_df = test_probas_df[(test_probas_df[class_name] == 1) & (test_probas_df[f'pred {class_name}'] == 0)]
+        num_samples = 2
+    elif sample_type == 'FP':
+        filtered_df = test_probas_df[(test_probas_df[class_name] == 0) & (test_probas_df[f'pred {class_name}'] == 1)]
+        num_samples = 2
+
+    task_df = filtered_df.loc[(filtered_df[f'proba {class_name}'] - midpoint).abs().nsmallest(num_samples).index]
+    task_df.reset_index(drop=True, inplace=True)
+
+    for index, row in task_df.iterrows():
+        task_tuple = (row['original_sentence'], row['cleaned_sentence'], row['sentence_embedding'], class_name, row[f'proba {class_name}'], 0.0)
+        task_dict[f'{class_name} {sample_type} Task {index + 1}'] = task_tuple
+        all_samples_dict[f'{class_name} {sample_type} Task {index + 1}'] = task_tuple
+
+
+def _sample_examples(train_probas_df, class_name, task_name, task_tuple, task_dict, all_samples_dict):
+    sample_types = {'TP': {'num_task_samples': 3, 'num_example_samples': 6},
+                    'FN': {'num_task_samples': 2, 'num_example_samples': 3},
+                    'FP': {'num_task_samples': 2, 'num_example_samples': 3}}
+
+    for sample_type, settings in sample_types.items():
+        num_task_samples = settings['num_task_samples']
+        num_example_samples = settings['num_example_samples']
+
+        if sample_type == 'TP':
+            filtered_df = train_probas_df[(train_probas_df[class_name] == 1) & (train_probas_df[f'pred {class_name}'] == 1)]
+        elif sample_type == 'FN':
+            filtered_df = train_probas_df[(train_probas_df[class_name] == 1) & (train_probas_df[f'pred {class_name}'] == 0)]
+        elif sample_type == 'FP':
+            filtered_df = train_probas_df[(train_probas_df[class_name] == 0) & (train_probas_df[f'pred {class_name}'] == 1)]
+
+        for index in range(0, num_task_samples):
+            task_tuple_key = f'{class_name} {sample_type} Task {index + 1}'
+            task_tuple = task_dict[task_tuple_key]
+            filtered_df_with_distance = _add_distance_to_train_probas_df(task_tuple, filtered_df)
+
+            max_example_samples = min(num_example_samples, len(filtered_df_with_distance.nsmallest(num_example_samples*2, 'distance')))
+            examples_df = filtered_df_with_distance.nsmallest(num_example_samples*2, 'distance').sample(n=max_example_samples)
+
+            examples_df.reset_index(drop=True, inplace=True)
+
+            for example_index, example_row in examples_df.iterrows():
+                example_key = f'{task_name} {sample_type} Example {example_index + 1}'
+                example_tuple = (example_row['original_sentence'], example_row['cleaned_sentence'], class_name, example_row[f'proba {class_name}'], example_row['distance'])
+                all_samples_dict[example_key] = example_tuple
+
+
+def _generate_samples_csvs(test_probas_df, train_probas_df, scores_df):
+    # remove sentences from test_probas_df with 1 or less words when cleaned
+    test_probas_df = test_probas_df[test_probas_df['cleaned_sentence'].apply(lambda x: len(x.split()) > 1)]
+    test_probas_df = test_probas_df.reset_index(drop=True)
     
     scores_df.set_index(scores_df.columns[0], inplace=True)
 
-    labels = [label for label in probas_df.columns[2:].tolist() if not (label.startswith('pred') or label.startswith('proba'))]
+    class_names = [class_name for class_name in test_probas_df.columns[7:].tolist() if not (class_name.startswith('pred') or class_name.startswith('proba'))]
 
-    samples_dict = {}
+    all_samples_dict = {}
+    task_dict = {}
 
-    probas_df_copy = probas_df.copy()
+    for class_name in class_names:
+        # get scores for class
+        upper_midpoint = scores_df.loc['upper midpoint', class_name]
+        lower_midpoint = scores_df.loc['lower midpoint', class_name]
 
-    counter = 0
+        # task sentences
 
-    # keep sampling until we have valid samples (or until 100 tries)
-    while counter < 100:
-        valid_sampling = True
+        # sample 3 task sentences from true positives (closest to upper midpoint)
+        _sample_tasks(test_probas_df, class_name, 'TP', upper_midpoint, task_dict, all_samples_dict)
+        # sample 2 task sentences from false negatives (closest to lower midpoint)
+        _sample_tasks(test_probas_df, class_name, 'FN', lower_midpoint, task_dict, all_samples_dict)
+        # sample 2 task sentences from false positives (closest to upper midpoint)
+        _sample_tasks(test_probas_df, class_name, 'FP', upper_midpoint, task_dict, all_samples_dict)
 
-        for label in labels:
-            q1_score_positive = scores_df.loc['Q1 positive', label]
-            q3_score_negative = scores_df.loc['Q3 negative', label]
+        # example sentences
 
-            # queries
+        for task_name, task_tuple in task_dict.items():
+            _sample_examples(train_probas_df, class_name, task_name, task_tuple, task_dict, all_samples_dict)
 
-            # sample query from top 10 positive (at random among top 10 positive)
-            top_positive_query_df = probas_df.nlargest(10, f'proba {label}').sample(n=1)
-            top_positive_query_tuple = (top_positive_query_df['original_sentence'].values[0], top_positive_query_df[f'proba {label}'].values[0])
-            # remove sampled query from probas_df
-            probas_df = probas_df.drop(top_positive_query_df.index)
+        task_dict = {}
 
-            # sample query from around q1 positive (closest to q1 positive)
-            q1_positive_query_df = probas_df.loc[(probas_df[f'proba {label}'] - q1_score_positive).abs().nsmallest(1).index]
-            q1_positive_query_tuple = (q1_positive_query_df['original_sentence'].values[0], q1_positive_query_df[f'proba {label}'].values[0])
-            # remove sampled query from probas_df
-            probas_df = probas_df.drop(q1_positive_query_df.index)
+        # remove distance column from task_tuples in all_samples_dict
+        pattern = rf'^{re.escape(class_name)} (TP|FN|FP) Task (\d)$'
+        for key in all_samples_dict.keys():
+            if re.match(pattern, key):
+                original_sentence, cleaned_sentence, _, class_name, proba, distance = all_samples_dict[key]
+                all_samples_dict[key] = (original_sentence, cleaned_sentence, class_name, proba, distance)
 
-            # sample query from around q3 negative (closest to q3 negative)
-            q3_negative_query_df = probas_df.loc[(probas_df[f'proba {label}'] - q3_score_negative).abs().nsmallest(1).index]
-            q3_negative_query_tuple = (q3_negative_query_df['original_sentence'].values[0], q3_negative_query_df[f'proba {label}'].values[0])
-            # remove sampled query from probas_df
-            probas_df = probas_df.drop(q3_negative_query_df.index)
-
-            # sample query from bottom 10 negative (at random among bottom 10 negative)
-            bottom_negative_query_df = probas_df.nsmallest(10, f'proba {label}').sample(n=1)
-            bottom_negative_query_tuple = (bottom_negative_query_df['original_sentence'].values[0], bottom_negative_query_df[f'proba {label}'].values[0])
-            # remove sampled query from probas_df
-            probas_df = probas_df.drop(bottom_negative_query_df.index)
-
-            # examples
-
-            # get true positive dfs
-            true_positive_df = probas_df[(probas_df[label] == 1) & (probas_df[f'pred {label}'] == 1)]
-            # sample 4 examples from top true positives (at random among top 10 true positives)
-            tp_top_examples_df = true_positive_df.nlargest(10, f'proba {label}').sample(n=4)
-            # remove sampled queries from probas_df
-            probas_df = probas_df.drop(tp_top_examples_df.index)
-            # get true positive dfs again
-            true_positive_df = probas_df[(probas_df[label] == 1) & (probas_df[f'pred {label}'] == 1)]
-            # sample 4 examples from around q1 positives (closest to q1 positive)
-            tp_q1_examples_df = true_positive_df.loc[(true_positive_df[f'proba {label}'] - q1_score_positive).abs().nsmallest(4).index]
-            # remove sampled queries from probas_df
-            probas_df = probas_df.drop(tp_q1_examples_df.index)
-
-            # get false positive df
-            false_positive_df = probas_df[(probas_df[label] == 0) & (probas_df[f'pred {label}'] == 1)]
-            # sample 2 examples from top false positives (at random among top 10 false positives)
-            fp_top_examples_df = false_positive_df.nlargest(10, f'proba {label}').sample(n=2)
-            # remove sampled queries from probas_df
-            probas_df = probas_df.drop(fp_top_examples_df.index)
-            # get false positive df again
-            false_positive_df = probas_df[(probas_df[label] == 0) & (probas_df[f'pred {label}'] == 1)]
-            # sample 2 examples from around q1 false positives (closest to q1 positive)
-            fp_q1_examples_df = false_positive_df.loc[(false_positive_df[f'proba {label}'] - q1_score_positive).abs().nsmallest(2).index]
-            # remove sampled queries from probas_df
-            probas_df = probas_df.drop(fp_q1_examples_df.index)
-
-            # get false negative df
-            false_negative_df = probas_df[(probas_df[label] == 1) & (probas_df[f'pred {label}'] == 0)]
-            # sample 2 examples from around q3 false negatives (closest to q3 negative)
-            fn_q3_examples_df = false_negative_df.loc[(false_negative_df[f'proba {label}'] - q3_score_negative).abs().nsmallest(2).index]
-            # remove sampled queries from probas_df
-            probas_df = probas_df.drop(fn_q3_examples_df.index)
-            # get false negative df again
-            false_negative_df = probas_df[(probas_df[label] == 1) & (probas_df[f'pred {label}'] == 0)]
-            # sample 2 examples from bottom false negatives
-            fn_bottom_examples_df = false_negative_df.nsmallest(10, f'proba {label}').sample(n=2)
-            # remove sampled queries from probas_df
-            probas_df = probas_df.drop(fn_bottom_examples_df.index)
-            
-            # create list of tuples (sentences, proba)
-            tp_examples_tuples = list(zip(tp_top_examples_df['original_sentence'], tp_top_examples_df[f'proba {label}'])) + list(zip(tp_q1_examples_df['original_sentence'], tp_q1_examples_df[f'proba {label}']))
-            fp_examples_tuples = list(zip(fp_top_examples_df['original_sentence'], fp_top_examples_df[f'proba {label}'])) + list(zip(fp_q1_examples_df['original_sentence'], fp_q1_examples_df[f'proba {label}']))
-            fn_examples_tuples = list(zip(fn_q3_examples_df['original_sentence'], fn_q3_examples_df[f'proba {label}'])) + list(zip(fn_bottom_examples_df['original_sentence'], fn_bottom_examples_df[f'proba {label}']))
-
-            if len(tp_examples_tuples) < 8 or len(fp_examples_tuples) < 4 or len(fn_examples_tuples) < 4:
-                valid_sampling = False
-                break
-
-            # shuffle lists
-            random.shuffle(tp_examples_tuples)
-            random.shuffle(fp_examples_tuples)
-            random.shuffle(fn_examples_tuples)
-
-            samples_dict[label] = {
-                'TP Examples Tuples': tp_examples_tuples,
-                'FP Examples Tuples': fp_examples_tuples,
-                'FN Examples Tuples': fn_examples_tuples,
-                'Top Positive Query Tuple': top_positive_query_tuple,
-                'Q1 Positive Query Tuple': q1_positive_query_tuple,
-                'Q3 Negative Query Tuple': q3_negative_query_tuple,
-                'Bottom Negative Query Tuple': bottom_negative_query_tuple
-            }
-
-        if valid_sampling:
-            print('Valid sampling. Done!')
-            break
-        
-        # reset probas_df
-        probas_df = probas_df_copy.copy()
-        print('Invalid sampling. Trying again...')
-        counter += 1
-
-    if counter == 100:
-        print('Could not sample valid examples. Please run train.py again.')
-        return
-    
     # save study samples to csv
-    samples_df = pd.DataFrame(samples_dict)
-    samples_df.to_csv('results/samples.csv')
+    samples_df = pd.DataFrame.from_dict(all_samples_dict, orient='index', columns=['original_sentence', 'cleaned_sentence', 'class_name', 'proba', 'distance'])
+    # reset the index to turn it into a column, and add the "name" column
+    samples_df.reset_index(inplace=True)
+    samples_df.rename(columns={'index': 'name'}, inplace=True)
+    samples_df.to_csv('results/samples.csv', index=False)
     print('Samples saved to results/samples.csv')
 
 
 if __name__ == '__main__':
     try:
-        probas_df = pd.read_csv('results/probas.csv')
+        test_probas_df = pd.read_csv('results/test_probas.csv')
+        test_probas_df.loc[:, 'sentence_embedding'] = test_probas_df['sentence_embedding'].apply(
+            lambda x: np.fromstring(
+                x.replace('\n','')
+                .replace('[','')
+                .replace(',', ' ')
+                .replace(']',''), sep=' '
+            )
+        )
+        # remove rows with less than 3 words when cleaned (to avoid LIME ZeroDivisionError)
+        test_probas_df = test_probas_df[test_probas_df['cleaned_sentence'].apply(lambda x: len(x.split()) > 2)]
+
+        train_probas_df = pd.read_csv('results/train_probas.csv')
+        train_probas_df.loc[:, 'sentence_embedding'] = train_probas_df['sentence_embedding'].apply(
+            lambda x: np.fromstring(
+                x.replace('\n','')
+                .replace('[','')
+                .replace(',', ' ')
+                .replace(']',''), sep=' '
+            )
+        )
+        # remove rows with less than 3 words when cleaned (to avoid LIME ZeroDivisionError)
+        train_probas_df = train_probas_df[train_probas_df['cleaned_sentence'].apply(lambda x: len(x.split()) > 2)]
+
+        # add sentence embeddings from the transformer model
+        # load transformer model from models/
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        model = AutoModelForSequenceClassification.from_pretrained('models/final').to(device)
+        tokenizer = AutoTokenizer.from_pretrained('models/final')
+        print('Adding sentence embeddings to train_probas_df...')
+        train_probas_df = _add_sentence_embeddings(train_probas_df, model, tokenizer)
+        print('Done.')
+        print('Adding sentence embeddings to test_probas_df...')
+        test_probas_df = _add_sentence_embeddings(test_probas_df, model, tokenizer)
+        print('Done.')
+
         scores_df = pd.read_csv('results/scores.csv')
         print('Sampling sentences...')
-        _generate_samples_csvs(probas_df, scores_df)
+        _generate_samples_csvs(test_probas_df, train_probas_df, scores_df)
     except FileNotFoundError as e:
-        print('results/probas.csv and/or results/scores.csv not found. Please run train.py first')
+        print('results/test_probas.csv, results/train_probas.csv and/or results/scores.csv not found. Please run train.py first')
