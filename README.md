@@ -57,13 +57,13 @@ python train.py
 python sample.py
 ```
 
-3. Generate JSON (saved in results/json/results.json):
+3. Generate JSON (saved in output/json/output.json):
 
 ```
 python generate_json.py
 ```
 
-4. Generate HTML from JSON (saved in results/html/results.html):
+4. Generate HTML from JSON (saved in output/html/output.html):
 ```
 python generate_html.py
 ```

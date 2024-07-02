@@ -94,9 +94,9 @@ def _generate_file(results_json, html_path):
 
 if __name__ == '__main__':
     try:
-        results_json = json.load(open('results/json/results.json', 'r', encoding='utf-8'))
+        results_json = json.load(open('output/json/output.json', 'r', encoding='utf-8'))
         print('Generating HTML...')
-        _generate_file(results_json, 'results/html/results.html')
-        print('HTML saved in results/html/results.html')
+        _generate_file(results_json, 'output/html/output.html')
+        print('HTML saved in output/html/output.html')
     except FileNotFoundError:
         print('JSON not found. Please run generate_json.py first.')

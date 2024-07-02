@@ -79,7 +79,7 @@ if __name__ == '__main__':
         class_names = train_df.columns[7:].tolist()
         samples_df = pd.read_csv('results/samples.csv')
         print('Generating JSON...')
-        _generate_file(clf, class_names, samples_df, 'results/json/results.json', lime_optimized=True)
+        _generate_file(clf, class_names, samples_df, 'output/json/output.json', lime_optimized=True)
         print('\nJSON generated.')
     except FileNotFoundError as e:
         print('Model and/or data not found. Please run train.py and sample.py first.')

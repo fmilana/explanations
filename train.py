@@ -8,7 +8,7 @@ from classifier import MultiLabelProbClassifier
 
 
 # generates confusion matrices for each class and saves to csv
-def _generate_cm_csv(test_df, class_names, Y_pred, Y_true):
+def _generate_cm_csv(df, df_name, class_names, Y_pred, Y_true):
     for i, class_name in enumerate(class_names):
         # return boolean arrays for each category
         TP = np.logical_and(Y_pred[:, i] == 1, Y_true[:, i] == 1)
@@ -16,10 +16,10 @@ def _generate_cm_csv(test_df, class_names, Y_pred, Y_true):
         TN = np.logical_and(Y_pred[:, i] == 0, Y_true[:, i] == 0)
         FN = np.logical_and(Y_pred[:, i] == 0, Y_true[:, i] == 1)
         # get sentences for each category using boolean arrays as indices
-        tp_sentences = test_df['original_sentence'][TP].tolist()
-        fp_sentences = test_df['original_sentence'][FP].tolist()
-        tn_sentences = test_df['original_sentence'][TN].tolist()
-        fn_sentences = test_df['original_sentence'][FN].tolist()
+        tp_sentences = df['original_sentence'][TP].tolist()
+        fp_sentences = df['original_sentence'][FP].tolist()
+        tn_sentences = df['original_sentence'][TN].tolist()
+        fn_sentences = df['original_sentence'][FN].tolist()
         # get number of sentences
         num_tp_sentences = len(tp_sentences)
         num_fp_sentences = len(fp_sentences)
@@ -40,19 +40,53 @@ def _generate_cm_csv(test_df, class_names, Y_pred, Y_true):
             f'false negatives ({num_fn_sentences})': fn_sentences
         })
         # save to csv
-        class_df.to_csv(f'results/cm/{class_name}_cm.csv', index=False)
+        class_df.to_csv(f'results/{df_name}/cm/{class_name}_cm.csv', index=False)
 
 
-def _generate_probas_csv(test_df, class_names, Y_test_prob):
-    proba_df = pd.DataFrame(Y_test_prob, columns=[f'proba {class_names}' for i, class_names in enumerate(class_names)])
-    test_df = test_df.reset_index(drop=True)
-    test_df = pd.concat([test_df, proba_df], axis=1)
-    test_df.to_csv('results/test_probas.csv', index=False)
+def _add_pred_and_proba_to_csv(df, df_name, class_names, Y_prob, average_best_thresholds_per_class):
+    # create a 2D NumPy array of zeros with same size as Y_prob
+    Y_base_pred = np.zeros_like(Y_prob, dtype=int)
+    Y_pred = np.zeros_like(Y_prob, dtype=int)
+    # apply the average best threshold from cross-validation for each class
+    for class_index in range(len(class_names)):
+        Y_base_pred[:, class_index] = (Y_prob[:, class_index] >= 0.5).astype(int)
+        Y_pred[:, class_index] = (Y_prob[:, class_index] >= average_best_thresholds_per_class[class_index]).astype(int)
 
-    return test_df
+    proba_df = pd.DataFrame(Y_prob, columns=[f'proba {class_names}' for i, class_names in enumerate(class_names)])
+    df = df.reset_index(drop=True)
+    df = pd.concat([df, proba_df], axis=1)
+    df.to_csv(f'results/{df_name}/probas.csv', index=False)
+
+    return Y_base_pred, Y_pred
 
 
-def _generate_scores_csv(class_names, test_df, average_best_thresholds_per_class):
+def _generate_metrics_txt(df_name, Y, Y_base_pred, Y_pred, class_names, average_best_thresholds_per_class):
+    # create 1D NumPy arrays to store test scores for each class
+    scores_per_class = np.zeros((len(class_names)))
+    base_scores_per_class = np.zeros((len(class_names)))
+    # calculate test scores for each class
+    for i, class_name in enumerate(class_names):
+        # using 0.5 threshold
+        base_scores_per_class[i] = f1_score(Y[:, i], Y_base_pred[:, i])
+        # using average best thresholds
+        scores_per_class[i] = f1_score(Y[:, i], Y_pred[:, i])
+    # calculate overall test score using 0.5 threshold
+    base_score = f1_score(Y, Y_base_pred, average='weighted')
+    # calculate overall test score using average best thresholds
+    score = f1_score(Y, Y_pred, average='weighted')
+
+    with open(f'results/{df_name}/model_scores.txt', 'w') as f:
+        output = f'==============={df_name} RESULTS===============\n'
+        output += f'{df_name} F1 Scores per class using 0.5 threshold: {base_scores_per_class}\n'
+        output += f'{df_name} F1 Scores per class using average best thresholds: {scores_per_class}\n'
+        output += f'base {df_name} F1 Score using 0.5 threshold: {base_score}\n'
+        output += f'{df_name} F1 Score using average best thresholds ({average_best_thresholds_per_class}): {score}\n'
+        output += f'==========================================\n'
+        print(output)
+        f.write(output)
+
+
+def _generate_class_scores_csv(df, df_name, class_names, average_best_thresholds_per_class):
     index = ['threshold',
              'upper midpoint',
              'lower midpoint']
@@ -65,7 +99,7 @@ def _generate_scores_csv(class_names, test_df, average_best_thresholds_per_class
         scores_df.loc['upper midpoint', class_name] = (threshold + 1) / 2
         scores_df.loc['lower midpoint', class_name] = threshold / 2
                                                                         
-    scores_df.to_csv('results/scores.csv')
+    scores_df.to_csv(f'results/{df_name}/scores.csv')
 
 
 def _train_and_validate(df):
@@ -168,81 +202,39 @@ def _train_and_validate(df):
     Y_test = np.array(test_df.iloc[:, 7:])
     # predict probabilities on the test set
     Y_test_prob = clf.predict_proba(X_test)
-    # create a 2D NumPy array of zeros with same size as Y_test_prob
-    Y_base_test_pred = np.zeros_like(Y_test_prob, dtype=int)
-    Y_test_pred = np.zeros_like(Y_test_prob, dtype=int)
-    # apply the average best threshold from cross-validation for each class
-    for class_index in range(len(class_names)):
-        Y_base_test_pred[:, class_index] = (Y_test_prob[:, class_index] >= 0.5).astype(int)
-        Y_test_pred[:, class_index] = (Y_test_prob[:, class_index] >= average_best_thresholds_per_class[class_index]).astype(int)
-    # append predictions to test_df and write to csv
-    for i, class_name in enumerate(class_names):
-        test_df[f'pred {class_name}'] = Y_test_pred[:, i]
-    test_df.to_csv('results/output.csv', index=False)
 
-    # create 1D NumPy arrays to store test scores for each class
-    test_scores_per_class = np.zeros((len(class_names)))
-    base_test_scores_per_class = np.zeros((len(class_names)))
-    # calculate test scores for each class
-    for i, class_name in enumerate(class_names):
-        # using 0.5 threshold
-        base_test_scores_per_class[i] = f1_score(Y_test[:, i], Y_base_test_pred[:, i])
-        # using average best thresholds
-        test_scores_per_class[i] = f1_score(Y_test[:, i], Y_test_pred[:, i])
-    # calculate overall test score using 0.5 threshold
-    base_test_score = f1_score(Y_test, Y_base_test_pred, average='weighted')
-    # calculate overall test score using average best thresholds
-    test_score = f1_score(Y_test, Y_test_pred, average='weighted')
+    # add predictions and probabilities to test df and save to csv
+    Y_base_test_pred, Y_test_pred = _add_pred_and_proba_to_csv(test_df, 'test', class_names, Y_test_prob, average_best_thresholds_per_class)
 
-    with open('results/model_scores.txt', 'w') as f:
-        output = f'===============TEST RESULTS===============\n'
-        output += f'test F1 Scores per class using 0.5 threshold: {base_test_scores_per_class}\n'
-        output += f'test F1 Scores per class using average best thresholds: {test_scores_per_class}\n'
-        output += f'base test F1 Score using 0.5 threshold: {base_test_score}\n'
-        output += f'test F1 Score using average best thresholds ({average_best_thresholds_per_class}): {test_score}\n'
-        output += f'==========================================\n'
-        print(output)
-        f.write(output)
+    # calculate and write test scores using 0.5 threshold and average best thresholds
+    _generate_metrics_txt('test', Y_base_test_pred, Y_test_pred, Y_test, class_names, average_best_thresholds_per_class)
 
-    # write confusion matrices to csv's
-    _generate_cm_csv(test_df, class_names, Y_test_pred, Y_test)
-    # write test_df probas to csv
-    test_df = _generate_probas_csv(test_df, class_names, Y_test_prob)
-    # write scores to csv
-    _generate_scores_csv(class_names, test_df, average_best_thresholds_per_class)
-
-    # return the trained classifier and the full training set (excluding test set)
-    return clf, df
-
-
-# predict on training set from which to sample example sentences later
-def _predict_train_samples(clf, df):
-    class_names = df.columns[7:].tolist()
-    scores_df = pd.read_csv('results/scores.csv', index_col=0)
-    thresholds = {class_name: scores_df.loc['threshold', class_name] for class_name in class_names}
-
-    Y_train_prob = clf.predict_proba(np.array(df['sentence_embedding'].tolist()))
-    Y_train_pred = np.zeros_like(Y_train_prob, dtype=int)
-
-    for i, class_name in enumerate(class_names):
-        Y_train_pred[:, i] = (Y_train_prob[:, i] >= thresholds[class_name]).astype(int)
-
-    for i, class_name in enumerate(class_names):
-        df[f'pred {class_name}'] = Y_train_pred[:, i]
-
-    for i, class_name in enumerate(class_names):
-        df[f'proba {class_name}'] = Y_train_prob[:, i]
+    # write test confusion matrices to csv's
+    _generate_cm_csv(test_df, 'test', class_names, Y_test_pred, Y_test)
     
-    df.to_csv('results/train_probas.csv', index=False)
+    # write class scores to csv
+    _generate_class_scores_csv(test_df, 'test', class_names, average_best_thresholds_per_class)
+
+    # predict on training set from which to sample example sentences later
+    Y_train_prob = clf.predict_proba(X_train_full)
+
+    Y_base_train_pred, Y_train_pred = _add_pred_and_proba_to_csv(df, 'train', class_names, Y_train_prob, average_best_thresholds_per_class)
+
+    _generate_metrics_txt('train', Y_base_train_pred, Y_train_pred, Y_train_full, class_names, average_best_thresholds_per_class)
+
+    _generate_cm_csv(df, 'train', class_names, Y_train_pred, Y_train_full)
+
+    _generate_class_scores_csv(df, 'train', class_names, average_best_thresholds_per_class)
+    
+    # return the trained classifier
+    return clf
 
 
 if __name__ == '__main__':
     try:
         df = pd.read_csv('data/train.csv')
         print('Training and validating model...')
-        clf, df = _train_and_validate(df)
-        print('Predicting on training set...')
-        _predict_train_samples(clf, df)
+        clf = _train_and_validate(df)
         # save the model to disk
         joblib.dump(clf, 'model/model.sav')
         print('Done. Model saved in model/model.sav.')
