@@ -1,5 +1,6 @@
 import os
 import re
+import xgboost
 import numpy as np
 import gensim.downloader
 from gensim.models import KeyedVectors
@@ -12,8 +13,6 @@ class Sentence2Vec:
     # https://github.com/RaRe-Technologies/gensim-data
     model_name = 'glove-twitter-50'
     model_file_path = 'embeddings/glove_twitter_50_embeddings'
-
-    vector_sentence_dict = {}
 
     def __init__(self):
         start = datetime.now()
@@ -31,8 +30,11 @@ class Sentence2Vec:
     def fit(self, X=None, y=None): # comply with scikit-learn transformer requirement (model is already trained)
         return self
 
-    def transform(self, X, y=None): # comply with scikit-learn transformer requirement
-        return np.array([self.get_vector(sentence) for sentence in X])
+    def transform(self, X, y=None):  # comply with scikit-learn transformer requirement
+        # Convert the list of sentences into a 2D NumPy array of sentence vectors
+        sentence_vectors = np.array([self.get_vector(sentence) for sentence in X])
+        # Convert the 2D NumPy array into a DMatrix
+        return xgboost.DMatrix(sentence_vectors)
 
     def get_vector(self, sentence):
         # convert to lowercase, ignore all special characters - keep only
@@ -45,7 +47,5 @@ class Sentence2Vec:
         # sentence vector equals average of word vectors
         if (len(word_vectors) > 0):
             sentence_vector = (np.array([sum(word_vector) for word_vector in zip(*word_vectors)])) / sentence_vector.size
-
-        self.vector_sentence_dict[sentence_vector.tobytes()] = sentence
 
         return sentence_vector

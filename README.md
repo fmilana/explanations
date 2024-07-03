@@ -47,23 +47,27 @@ python -m spacy download en_core_web_md
 
 ## Generate explanations
 
-1. Train the classifier (saved in model/model.sav):
+1. Train the classifier (saved in model/xgb_model.json):
 ```
 python train.py
 ```
+2. Classify test and train data for sampling (resuls saved in results/test/ and results/train/):
+```
+python classify.py
+```
 
-2. Sample sentences (saved in results/samples.csv):
+3. Sample sentences (saved in results/samples.csv):
 ```
 python sample.py
 ```
 
-3. Generate JSON (saved in output/json/output.json):
+4. Generate JSON (saved in output/json/output.json):
 
 ```
 python generate_json.py
 ```
 
-4. Generate HTML from JSON (saved in output/html/output.html):
+5. Generate HTML from JSON (saved in output/html/output.html):
 ```
 python generate_html.py
 ```
