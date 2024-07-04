@@ -1,131 +1,32 @@
-import os
+import json
 import random
-import joblib
+import GPUtil
+import xgboost
 import numpy as np
 import pandas as pd
+from itertools import product
 from sklearn.metrics import f1_score
+from sklearn.model_selection import GridSearchCV, GroupKFold
 from augment import oversample
-from classifier import MultiLabelProbClassifier
-from sklearn.model_selection import KFold
 
 
-# hardcoded thresholds for each class
-# BEST_TRAIN_THRESHOLDS = [0.87, 0.68, 0.79, 0.78]
-# BEST_TEST_THRESHOLDS = [0.3, 0.31, 0.25, 0.23]
+def _get_device():
+    if GPUtil.getGPUs():
+        print('Using GPU for training.')
+        return 'cuda'
+    else:
+        print('Using CPU for training.')
+        return 'cpu'
 
 
-# generates confusion matrices for each class and saves to csv
-def _generate_cm_csv(df, df_name, split_index, class_names, Y_pred, Y_true):
-    for i, class_name in enumerate(class_names):
-        # return boolean arrays for each category
-        TP = np.logical_and(Y_pred[:, i] == 1, Y_true[:, i] == 1)
-        FP = np.logical_and(Y_pred[:, i] == 1, Y_true[:, i] == 0)
-        TN = np.logical_and(Y_pred[:, i] == 0, Y_true[:, i] == 0)
-        FN = np.logical_and(Y_pred[:, i] == 0, Y_true[:, i] == 1)
-        # get sentences for each category using boolean arrays as indices
-        tp_sentences = df['original_sentence'][TP].tolist()
-        fp_sentences = df['original_sentence'][FP].tolist()
-        tn_sentences = df['original_sentence'][TN].tolist()
-        fn_sentences = df['original_sentence'][FN].tolist()
-        # get number of sentences
-        num_tp_sentences = len(tp_sentences)
-        num_fp_sentences = len(fp_sentences)
-        num_tn_sentences = len(tn_sentences)
-        num_fn_sentences = len(fn_sentences)
-        # get maximum number of sentences in any category
-        max_len = max(num_tp_sentences, num_fp_sentences, num_tn_sentences, num_fn_sentences)
-        # pad shorter lists with empty strings to make all lists of equal length
-        tp_sentences.extend([''] * (max_len - num_tp_sentences))
-        fp_sentences.extend([''] * (max_len - num_fp_sentences))
-        tn_sentences.extend([''] * (max_len - num_tn_sentences))
-        fn_sentences.extend([''] * (max_len - num_fn_sentences))
-        # create new df
-        class_df = pd.DataFrame({
-            f'true positives ({num_tp_sentences})': tp_sentences,
-            f'false positives ({num_fp_sentences})': fp_sentences,
-            f'true negatives ({num_tn_sentences})': tn_sentences,
-            f'false negatives ({num_fn_sentences})': fn_sentences
-        })
-        # save to csv
-        if not os.path.exists(f'results/{df_name}/{split_index + 1}/cm/'):
-            os.makedirs(f'results/{df_name}/{split_index + 1}/cm/')
-        class_df.to_csv(f'results/{df_name}/{split_index + 1}/cm/{class_name}_cm.csv', index=False)
-
-
-def _add_pred_and_proba_to_csv(df, df_name, split_index, class_names, Y_prob, best_thresholds):
-    # create a 2D NumPy array of zeros with same size as Y_prob
-    Y_base_pred = np.zeros_like(Y_prob, dtype=int)
-    Y_pred = np.zeros_like(Y_prob, dtype=int)
-    # apply the best threshold from cross-validation for each class
-    for class_index in range(len(class_names)):
-        Y_base_pred[:, class_index] = (Y_prob[:, class_index] >= 0.5).astype(int)
-        Y_pred[:, class_index] = (Y_prob[:, class_index] >= best_thresholds[class_index]).astype(int)
-
-    proba_df = pd.DataFrame(Y_prob, columns=[f'proba {class_names}' for i, class_names in enumerate(class_names)])
-    df = df.reset_index(drop=True)
-    df = pd.concat([df, proba_df], axis=1)
-    # save to csv
-    if not os.path.exists(f'results/{df_name}/{split_index + 1}/'):
-        os.makedirs(f'results/{df_name}/{split_index + 1}/')
-    df.to_csv(f'results/{df_name}/{split_index + 1}/probas.csv', index=False)
-
-    return Y_base_pred, Y_pred
-
-
-def _generate_metrics_txt(df_name, split_index, Y, Y_base_pred, Y_pred, class_names, best_thresholds):
-    # create 1D NumPy arrays to store test scores for each class
-    scores_per_class = np.zeros((len(class_names)))
-    base_scores_per_class = np.zeros((len(class_names)))
-    # calculate test scores for each class
-    for i, class_name in enumerate(class_names):
-        # using 0.5 threshold
-        base_scores_per_class[i] = f1_score(Y[:, i], Y_base_pred[:, i])
-        # using best thresholds
-        scores_per_class[i] = f1_score(Y[:, i], Y_pred[:, i])
-    # calculate overall test score using 0.5 threshold
-    base_score = f1_score(Y, Y_base_pred, average='weighted')
-    # calculate overall test score using best thresholds
-    score = f1_score(Y, Y_pred, average='weighted')
-
-    # save to txt
-    if not os.path.exists(f'results/{df_name}/{split_index + 1}/'):
-        os.makedirs(f'results/{df_name}/{split_index + 1}/')
-    with open(f'results/{df_name}/{split_index + 1}/model_scores.txt', 'w') as f:
-        output = f'==============={df_name} {split_index + 1} RESULTS===============\n'
-        output += f'{df_name} F1 Scores per class using 0.5 threshold: {base_scores_per_class}\n'
-        output += f'{df_name} F1 Scores per class using best thresholds: {scores_per_class}\n'
-        output += f'base {df_name} F1 Score using 0.5 threshold: {base_score}\n'
-        output += f'{df_name} F1 Score using best thresholds ({best_thresholds}): {score}\n'
-        output += f'==========================================\n'
-        print(output)
-        f.write(output)
-
-
-def _generate_class_scores_csv(df, df_name, split_index, class_names, best_thresholds):
-    index = ['threshold',
-             'upper midpoint',
-             'lower midpoint']
-
-    scores_df = pd.DataFrame(index=index, columns=class_names)
-
-    scores_df.loc['threshold'] = [threshold for threshold in best_thresholds]
- 
-    for class_name, threshold in zip(class_names, best_thresholds):
-        scores_df.loc['upper midpoint', class_name] = (threshold + 1) / 2
-        scores_df.loc['lower midpoint', class_name] = threshold / 2
-
-    # save to csv
-    if not os.path.exists(f'results/{df_name}/{split_index + 1}/'):
-        os.makedirs(f'results/{df_name}/{split_index + 1}/')                                   
-    scores_df.to_csv(f'results/{df_name}/{split_index + 1}/scores.csv')
-
-
-def _train_all_splits(df):
-    # remove rows with null values in cleaned_sentence
+def _train_and_validate(df):
+    # Remove rows with null values in cleaned_sentence
     df = df[df['cleaned_sentence'].notnull()]
-    # get list of class names
+
+    # Get list of class names
     class_names = df.columns[7:].tolist()
-    # process sentence embedding strings
+
+    # Process sentence embedding strings
     df.loc[:, 'sentence_embedding'] = df['sentence_embedding'].apply(
         lambda x: np.fromstring(
             x.replace('\n','')
@@ -134,112 +35,120 @@ def _train_all_splits(df):
             .replace(']',''), sep=' '
         )
     )
-    # create list of review ids for training
-    review_ids = df['review_id'].unique().tolist()
-    n_splits = 7 # 21 / 3 = 7
-    kf = KFold(n_splits=n_splits, shuffle=True, random_state=42)
 
-    for split_index, (train_index, val_index) in enumerate(kf.split(review_ids)):
-        print(f'==> Training on split {split_index + 1}/{n_splits}...')
+    # Prepare data
+    X = np.array(df['sentence_embedding'].tolist())
+    Y = np.array(df.iloc[:, 7:])
+    
+    groups = df['review_id'].values  # Use review_id for grouping in cross-validation
 
-        train_ids = [review_ids[i] for i in train_index]
-        val_ids = [review_ids[i] for i in val_index]
+    num_classes = Y.shape[1]
 
-        train_df = df[df['review_id'].isin(train_ids)]
-        test_df = df[df['review_id'].isin(val_ids)] # we call validation set test for consistency with previous code
+    # Split data into training and test sets
+    unique_review_ids = df['review_id'].unique()
+    random.seed(42)
+    test_review_ids = random.sample(list(unique_review_ids), 5) # 5 random review_ids for test set
+    train_review_ids = [review_id for review_id in unique_review_ids if review_id not in test_review_ids]
 
-        # prepare training data
-        X_train = np.array(train_df['sentence_embedding'].tolist())
-        Y_train = np.array(train_df.iloc[:, 7:])
-        # # oversample minority classes (if present)
-        X_train_oversampled, Y_train_oversampled = oversample(X_train, Y_train)
-        # prepare validation ("test") data
-        X_test = np.array(test_df['sentence_embedding'].tolist())
-        Y_test = np.array(test_df.iloc[:, 7:])
+    train_mask = df['review_id'].isin(train_review_ids)
+    test_mask = df['review_id'].isin(test_review_ids)
 
-        # reinitialise classifier for each split
-        clf = MultiLabelProbClassifier()
-        # fit classifier
-        print('Fitting classifier...')
-        clf.fit(X_train_oversampled, Y_train_oversampled)
-        print('Done.')
-        # predict probabilities on validation set
-        print('Predicting probabilities on test set...')
-        Y_prob = clf.predict_proba(X_test)
-        print('Done.')
+    X_train, X_test = X[train_mask], X[test_mask]
+    Y_train, Y_test = Y[train_mask], Y[test_mask]
+    groups_train = groups[train_mask]
 
-        # find best threshold for each class
-        # set thresholds to try for classification
-        thresholds = np.arange(0.1, 1, 0.1)
-        # initialise 2D NumPy arrays (iterations x classes) to store best thresholds and scores for each class 
-        best_thresholds = np.zeros(len(class_names))
-        best_scores = np.zeros(len(class_names))
+    device = _get_device()
 
-        print('Finding best thresholds according to split...')
-        # iterate over each class (index)
-        for class_index in range(len(class_names)):
-            # get true labels for the current class (1D array)
-            y_class_true = Y_test[:, class_index]
-            # initialise best score and threshold for the current class
-            best_score_for_class = 0
-            best_threshold_for_class = 0
-            # iterate over thresholds
-            for threshold in thresholds:
-                # convert probabilities to binary predictions for the current class
-                y_class_pred = (Y_prob[:, class_index] > threshold).astype(int)
-                # calculate f1 score for the current class (compare 1D arrays)
-                score = f1_score(y_class_true, y_class_pred)
-                # update best score and threshold if score is better
-                if score > best_score_for_class:
-                    best_score_for_class = score
-                    best_threshold_for_class = threshold
-            
-            # store the best threshold and score for the current class
-            best_thresholds[class_index] = best_threshold_for_class
-            best_scores[class_index] = best_score_for_class
+    # Define parameter grid
+    param_grid = {
+        # 'max_depth': [4, 5, 6],
+        'max_depth': [2, 3],
+        # 'learning_rate': [0.01, 0.1, 0.3],
+        'learning_rate': [0.1, 0.3, 0.5],
+        # 'subsample': [0.8, 1.0],
+        'subsample': [0.7, 0.8, 0.9],
+        'colsample_bytree': [0.8, 1.0],
+        'reg_lambda': [1, 10, 100]
+    }
 
-        print('Done.')
-        print(f'===============SPLIT {split_index + 1} RESULTS===============')
-        print(f'best thresholds per class: {best_thresholds}')
-        print(f'scores per class: {best_scores}')
-        print(f'score across all classes: {np.mean(best_scores)}')
-        print(f'================================================')
+    # Set up GroupKFold for cross-validation
+    n_splits = 4
+    group_kfold = GroupKFold(n_splits=n_splits)
 
-        print('Predicting probabilities on test set...')
-        Y_test_prob = clf.predict_proba(X_test)
+    best_score = 0
+    best_params = None
 
-        # add predictions and probabilities to test df and save to csv
-        Y_base_test_pred, Y_test_pred = _add_pred_and_proba_to_csv(test_df, 'test', split_index, class_names, Y_test_prob, best_thresholds)
+    # cross-validation loop
+    for fold_counter, (train_index, val_index) in enumerate(group_kfold.split(X_train, Y_train, groups_train)):
+        X_train_fold, X_val_fold = X_train[train_index], X_train[val_index]
+        Y_train_fold, Y_val_fold = Y_train[train_index], Y_train[val_index]
 
-        # calculate and write test scores using 0.5 threshold and best thresholds
-        _generate_metrics_txt('test', split_index, Y_base_test_pred, Y_test_pred, Y_test, class_names, best_thresholds)
+        # Oversample minority class (if needed)
+        X_train_fold, Y_train_fold = oversample(X_train_fold, Y_train_fold)
 
-        # write test confusion matrices to csv's
-        _generate_cm_csv(test_df, 'test', split_index, class_names, Y_test_pred, Y_test)
-        
-        # write class scores to csv
-        _generate_class_scores_csv(test_df, 'test', split_index, class_names, best_thresholds)
+        # Create QuantileDMatrix
+        dtrain = xgboost.QuantileDMatrix(X_train_fold, label=Y_train_fold)
+        dval = xgboost.QuantileDMatrix(X_val_fold, label=Y_val_fold)
 
-        # predict on training set from which to sample example sentences later
-        Y_train_prob = clf.predict_proba(X_train)
+        for params in [dict(zip(param_grid.keys(), v)) for v in product(*param_grid.values())]:
+            params.update({
+                'objective': 'binary:logistic',
+                'eval_metric': 'logloss',
+                'tree_method': 'hist',
+                'device': device
+            })
 
-        Y_base_train_pred, Y_train_pred = _add_pred_and_proba_to_csv(train_df, 'train', split_index, class_names, Y_train_prob, best_thresholds)
+            params_key = str(params)
 
-        _generate_metrics_txt('train', split_index, Y_base_train_pred, Y_train_pred, Y_train, class_names, best_thresholds)
+            # Train the model
+            num_round = 100  # adjust this
+            clf = xgboost.train(params, dtrain, num_round, evals=[(dval, 'eval')], early_stopping_rounds=10)
 
-        _generate_cm_csv(train_df, 'train', split_index, class_names, Y_train_pred, Y_train)
+            # Predict on validation set
+            y_pred_proba = clf.predict(dval)
 
-        _generate_class_scores_csv(train_df, 'train', split_index, class_names, best_thresholds)
+            y_pred = (y_pred_proba >= 0.5).astype(int)
+            score = f1_score(Y_val_fold, y_pred, average='weighted')
 
-        # save model to disk
-        joblib.dump(clf, f'model/model_{split_index + 1}.sav')
+            if score > best_score:
+                best_score = score
+                best_params = params
+
+    print('Best hyperparameters:', best_params)
+    print('Best cross-validation score:', best_score)
+
+    # Train final model on all training data
+    # Oversample minority class (if needed)
+    X_train, Y_train = oversample(X_train, Y_train)
+    # Create QuantileDMatrix
+    dtrain_full = xgboost.QuantileDMatrix(X_train, label=Y_train)
+    final_model = xgboost.train(best_params, dtrain_full, num_round)
+
+    # Evaluate final model on test set
+    dtest = xgboost.QuantileDMatrix(X_test, label=Y_test)
+    Y_prob_test = final_model.predict(dtest)
+    Y_pred_test = (Y_prob_test >= 0.5).astype(int)
+
+    # Calculate and print final F1 score on test set
+    final_score_test = f1_score(Y_test, Y_pred_test, average='weighted')
+    print('Final F1 Score on Test Set:', final_score_test)
+
+    # get train and test dfs and save to csv
+    df[train_mask].to_csv('data/train.csv', index=False)
+    df[test_mask].to_csv('data/test.csv', index=False)
+
+    # save model to disk
+    final_model.save_model('model/xgb_model.json')
 
 
 if __name__ == '__main__':
     try:
-        df = pd.read_csv('data/train.csv')
-        print('Training model on all splits...')
-        _train_all_splits(df)
-        print('Done. Models saved in model/')
+        df = pd.read_csv('data/data.csv')
+        print('Training and validating model...')
+        _train_and_validate(df)
+        print('Done.') 
+        print('Train data saved in data/train.csv')
+        print('Test data saved in data/test.csv.')
+        print('Model saved in model/')
     except FileNotFoundError as e:
-        print('data/train.csv not found.')
+        print('data/data.csv not found.')

@@ -2,9 +2,11 @@ import ast
 import random
 import re
 import json
-import pandas as pd
+import xgboost
 import joblib
 import regex
+import pandas as pd
+from classifier import MultiLabelProbClassifier
 from lime_explain import get_lime_weights
 from occlusion_explain import get_occlusion_weights
 from shap_explain import get_shap_weights
@@ -74,7 +76,9 @@ def _generate_file(clf, class_names, samples_df, json_path, lime_optimized):
 
 if __name__ == '__main__':
     try:
-        clf = joblib.load('model/model.sav')
+        clf = xgboost.Booster()
+        clf.load_model('model/xgb_model.json')
+        clf = MultiLabelProbClassifier(clf) # wrap the model in a MultiLabelProbClassifier for LIME
         train_df = pd.read_csv('data/train.csv')
         class_names = train_df.columns[7:].tolist()
         samples_df = pd.read_csv('results/samples.csv')

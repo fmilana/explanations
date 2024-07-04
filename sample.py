@@ -1,4 +1,5 @@
 import re
+import json
 import random
 import numpy as np
 import pandas as pd
@@ -64,12 +65,10 @@ def _sample_examples(train_probas_df, class_name, task_name, task_tuple, task_di
                 all_samples_dict[example_key] = example_tuple
 
 
-def _generate_samples_csvs(test_probas_df, train_probas_df, scores_df):
+def _generate_samples_csvs(test_probas_df, train_probas_df, best_thresholds):
     # remove sentences from test_probas_df with 1 or less words when cleaned
     test_probas_df = test_probas_df[test_probas_df['cleaned_sentence'].apply(lambda x: len(x.split()) > 1)]
     test_probas_df = test_probas_df.reset_index(drop=True)
-    
-    scores_df.set_index(scores_df.columns[0], inplace=True)
 
     class_names = [class_name for class_name in test_probas_df.columns[7:].tolist() if not (class_name.startswith('pred') or class_name.startswith('proba'))]
 
@@ -78,8 +77,8 @@ def _generate_samples_csvs(test_probas_df, train_probas_df, scores_df):
 
     for class_name in class_names:
         # get scores for class
-        upper_midpoint = scores_df.loc['upper midpoint', class_name]
-        lower_midpoint = scores_df.loc['lower midpoint', class_name]
+        upper_midpoint = (best_thresholds[class_name] + 1) / 2
+        lower_midpoint = best_thresholds[class_name] / 2
 
         # task sentences
 
@@ -139,8 +138,11 @@ if __name__ == '__main__':
         # remove rows with less than 3 words when cleaned (to avoid LIME ZeroDivisionError)
         train_probas_df = train_probas_df[train_probas_df['cleaned_sentence'].apply(lambda x: len(x.split()) > 2)]
 
-        scores_df = pd.read_csv('results/scores.csv')
+        # load best thresholds
+        with open('results/best_thresholds.json', 'r') as f:
+            best_thresholds = json.load(f)
+
         print('Sampling sentences...')
-        _generate_samples_csvs(test_probas_df, train_probas_df, scores_df)
+        _generate_samples_csvs(test_probas_df, train_probas_df, best_thresholds)
     except FileNotFoundError as e:
         print('results/test_probas.csv, results/train_probas.csv and/or results/scores.csv not found. Please run train.py first')

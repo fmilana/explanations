@@ -9,7 +9,7 @@ def get_occlusion_weights(pipeline, class_names, sentence, class_name, proba):
     for word in words:
         occluded_sentence = ' '.join([w if w != word else '' for w in words])
 
-        occluded_proba  = pipeline.predict_proba([occluded_sentence])[class_names.index(class_name)]
+        occluded_proba  = pipeline.predict([occluded_sentence])[class_names.index(class_name)]
         # convert numpy array to float
         occlusion_weight = float(proba - occluded_proba)
 
