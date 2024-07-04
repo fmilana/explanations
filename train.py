@@ -68,7 +68,7 @@ def _train_and_validate(df):
         # 'subsample': [0.8, 1.0],
         'subsample': [0.7, 0.8, 0.9],
         'colsample_bytree': [0.8, 1.0],
-        'reg_lambda': [1, 10, 100]
+        'reg_lambda': [100]
     }
 
     # Set up GroupKFold for cross-validation
