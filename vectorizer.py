@@ -47,5 +47,7 @@ class Sentence2Vec:
         # sentence vector equals average of word vectors
         if (len(word_vectors) > 0):
             sentence_vector = (np.array([sum(word_vector) for word_vector in zip(*word_vectors)])) / sentence_vector.size
+        # normalize sentence vector
+        sentence_vector = sentence_vector / np.linalg.norm(sentence_vector)
 
         return sentence_vector

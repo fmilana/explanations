@@ -19,18 +19,6 @@ def _get_device():
         return 'cpu'
 
 
-def _optimize_threshold_f1_score(y_true, y_pred_proba, thresholds=np.arange(0.1, 1, 0.1)):
-    best_score = 0
-    best_threshold = 0.5
-    for threshold in thresholds:
-        y_pred = (y_pred_proba >= threshold).astype(int)
-        score = f1_score(y_true, y_pred, average='weighted')
-        if score > best_score:
-            best_score = score
-            best_threshold = threshold
-    return best_threshold, best_score
-
-
 def _train_and_validate(df):
     # Remove rows with null values in cleaned_sentence
     df = df[df['cleaned_sentence'].notnull()]
@@ -73,8 +61,8 @@ def _train_and_validate(df):
 
     # Define parameter grid
     param_grid = {
-        # 'max_depth': [3, 4, 5],
-        'max_depth': [4, 5, 6],
+        # 'max_depth': [4, 5, 6],
+        'max_depth': [2, 3],
         # 'learning_rate': [0.01, 0.1, 0.3],
         'learning_rate': [0.1, 0.3, 0.5],
         # 'subsample': [0.8, 1.0],
@@ -89,7 +77,6 @@ def _train_and_validate(df):
 
     best_score = 0
     best_params = None
-    thresholds_dict = {}
 
     # cross-validation loop
     for fold_counter, (train_index, val_index) in enumerate(group_kfold.split(X_train, Y_train, groups_train)):
@@ -120,34 +107,15 @@ def _train_and_validate(df):
             # Predict on validation set
             y_pred_proba = clf.predict(dval)
 
-            # Initialize thresholds accumulator for current params
-            if params_key not in thresholds_dict:
-                thresholds_dict[params_key] = np.zeros((n_splits, num_classes))
-
-            # Optimize thresholds
-            for i in range(num_classes):
-                _, threshold = _optimize_threshold_f1_score(Y_val_fold[:, i], y_pred_proba[:, i])
-                thresholds_dict[params_key][fold_counter, i] = threshold          
-
-            # Calculate F1 score with optimized thresholds
-            y_pred = (y_pred_proba >= np.array(thresholds_dict[params_key][fold_counter])).astype(int)
+            y_pred = (y_pred_proba >= 0.5).astype(int)
             score = f1_score(Y_val_fold, y_pred, average='weighted')
 
             if score > best_score:
                 best_score = score
                 best_params = params
 
-    # Calculate average best thresholds per class for best hyperparameters
-    best_thresholds = np.mean(thresholds_dict[str(best_params)], axis=0)
-    # save best thresholds as a list to json file
-    best_thresholds = best_thresholds.tolist()
-    best_thresholds_dict = {class_names[i]: best_thresholds[i] for i in range(num_classes)}
-    with open('model/best_thresholds.json', 'w') as f:
-        json.dump(best_thresholds_dict, f)
-
     print('Best hyperparameters:', best_params)
     print('Best cross-validation score:', best_score)
-    print('Best thresholds per class:', best_thresholds)
 
     # Train final model on all training data
     # Oversample minority class (if needed)
@@ -159,11 +127,7 @@ def _train_and_validate(df):
     # Evaluate final model on test set
     dtest = xgboost.QuantileDMatrix(X_test, label=Y_test)
     Y_prob_test = final_model.predict(dtest)
-    Y_pred_test = (Y_prob_test >= np.array(best_thresholds)).astype(int)
-
-    # Generate final predictions
-    Y_prob = final_model.predict(dtrain_full)
-    Y_pred = (Y_prob >= np.array(best_thresholds)).astype(int)
+    Y_pred_test = (Y_prob_test >= 0.5).astype(int)
 
     # Calculate and print final F1 score on test set
     final_score_test = f1_score(Y_test, Y_pred_test, average='weighted')

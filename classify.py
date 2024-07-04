@@ -5,44 +5,36 @@ import numpy as np
 from sklearn.metrics import f1_score
 
 
-def _add_pred_and_prob_to_csv(df, df_name, class_names, Y_prob, best_thresholds):
+def _add_pred_and_prob_to_csv(df, df_name, class_names, Y_prob):
     # create a 2D NumPy array of zeros with same size as Y_prob
-    Y_base_pred = np.zeros_like(Y_prob, dtype=int)
     Y_pred = np.zeros_like(Y_prob, dtype=int)
-    # apply the average best threshold from cross-validation for each class
+
     for class_index, class_name in enumerate(class_names):
-        Y_base_pred[:, class_index] = (Y_prob[:, class_index] >= 0.5).astype(int)
-        Y_pred[:, class_index] = (Y_prob[:, class_index] >= best_thresholds[class_name]).astype(int)
+        Y_pred[:, class_index] = (Y_prob[:, class_index] >= 0.5).astype(int)
 
     prob_df = pd.DataFrame(Y_prob, columns=[f'proba {class_names}' for i, class_names in enumerate(class_names)])
     df = df.reset_index(drop=True)
     df = pd.concat([df, prob_df], axis=1)
     df.to_csv(f'results/{df_name}/probas.csv', index=False)
 
-    return Y_base_pred, Y_pred
+    return Y_pred
 
 
-def _generate_metrics_txt(df_name, Y, Y_base_pred, Y_pred, class_names, best_thresholds):
+def _generate_metrics_txt(df_name, Y, Y_pred, class_names):
     # create 1D NumPy arrays to store test scores for each class
     scores_per_class = np.zeros((len(class_names)))
-    base_scores_per_class = np.zeros((len(class_names)))
     # calculate test scores for each class
     for i, class_name in enumerate(class_names):
-        # using 0.5 threshold
-        base_scores_per_class[i] = f1_score(Y[:, i], Y_base_pred[:, i])
-        # using average best thresholds
         scores_per_class[i] = f1_score(Y[:, i], Y_pred[:, i])
-    # calculate overall test score using 0.5 threshold
-    base_score = f1_score(Y, Y_base_pred, average='weighted')
-    # calculate overall test score using average best thresholds
+    # calculate overall test score
+    score = f1_score(Y, Y_pred, average='weighted')
+    # calculate overall test score
     score = f1_score(Y, Y_pred, average='weighted')
 
     with open(f'results/{df_name}/model_scores.txt', 'w') as f:
         output = f'==============={df_name} RESULTS===============\n'
-        output += f'{df_name} F1 Scores per class using 0.5 threshold: {base_scores_per_class}\n'
-        output += f'{df_name} F1 Scores per class using average best thresholds: {scores_per_class}\n'
-        output += f'base {df_name} F1 Score using 0.5 threshold: {base_score}\n'
-        output += f'{df_name} F1 Score using average best thresholds ({best_thresholds}): {score}\n'
+        output += f'{df_name} F1 Scores per class: {scores_per_class}\n'
+        output += f'base {df_name} F1 Score: {score}\n'
         output += f'==========================================\n'
         print(output)
         f.write(output)
@@ -84,7 +76,7 @@ def _generate_cm_csv(df, df_name, class_names, Y_pred, Y_true):
         class_df.to_csv(f'results/{df_name}/cm/{class_name}_cm.csv', index=False)
 
 
-def _predict_set(df, df_name, clf, best_thresholds):
+def _predict_set(df, df_name, clf):
     X = np.array(df['sentence_embedding'].tolist())
     Y = np.array(df.iloc[:, 7:])
 
@@ -94,9 +86,9 @@ def _predict_set(df, df_name, clf, best_thresholds):
     dx = xgboost.DMatrix(X) # create DMatrix
     Y_prob = clf.predict(dx)
     # add predictions and probabilities to test df and save to csv
-    Y_base_pred, Y_pred = _add_pred_and_prob_to_csv(df, df_name, class_names, Y_prob, best_thresholds)
-    # calculate and write test scores using 0.5 threshold and average best thresholds
-    _generate_metrics_txt(df_name, Y_base_pred, Y_pred, Y, class_names, best_thresholds)
+    Y_pred = _add_pred_and_prob_to_csv(df, df_name, class_names, Y_prob)
+    # calculate and write test scores using 0.5 threshold
+    _generate_metrics_txt(df_name, Y_pred, Y, class_names)
     # write test confusion matrices to csv's
     _generate_cm_csv(df, df_name, class_names, Y_pred, Y)
 
@@ -123,19 +115,16 @@ if __name__ == '__main__':
         )
         clf = xgboost.Booster()
         clf.load_model('model/xgb_model.json')
-        with open('model/best_thresholds.json', 'r') as f:
-            best_thresholds = json.load(f)
 
         print('Predicting on test set...')
-        _predict_set(test_df, 'test', clf, best_thresholds)
+        _predict_set(test_df, 'test', clf)
         print('Done. Results saved in results/test/')
         print('Predicting on train set...')
-        _predict_set(train_df, 'train', clf, best_thresholds)
+        _predict_set(train_df, 'train', clf)
         print('Done. Results saved in results/train/')
     except FileNotFoundError as e:
         print('One or more of these files are missing:')
         print('data/train.csv')
         print('data/test.csv')
         print('model/xgboost.json')
-        print('model/best_thresholds.json')
         print('Please run train.py first.')
