@@ -14,7 +14,9 @@ class Sentence2Vec:
     model_name = 'glove-twitter-50'
     model_file_path = 'embeddings/glove_twitter_50_embeddings'
 
+
     def __init__(self):
+        np.seterr(divide='raise')
         start = datetime.now()
         nltk.download('punkt')
         if os.path.exists(self.model_file_path):
@@ -27,14 +29,17 @@ class Sentence2Vec:
             self.model.save(self.model_file_path)
         print(f'done in {datetime.now() - start}')
 
+
     def fit(self, X=None, y=None): # comply with scikit-learn transformer requirement (model is already trained)
         return self
+
 
     def transform(self, X, y=None):  # comply with scikit-learn transformer requirement
         # Convert the list of sentences into a 2D NumPy array of sentence vectors
         sentence_vectors = np.array([self.get_vector(sentence) for sentence in X])
         # Convert the 2D NumPy array into a DMatrix
         return xgboost.DMatrix(sentence_vectors)
+
 
     def get_vector(self, sentence):
         # convert to lowercase, ignore all special characters - keep only
@@ -48,6 +53,10 @@ class Sentence2Vec:
         if (len(word_vectors) > 0):
             sentence_vector = (np.array([sum(word_vector) for word_vector in zip(*word_vectors)])) / sentence_vector.size
         # normalize sentence vector
-        sentence_vector = sentence_vector / np.linalg.norm(sentence_vector)
+        norm = np.linalg.norm(sentence_vector)
+        if norm != 0:
+            sentence_vector = sentence_vector / norm
+        else:
+            pass
 
         return sentence_vector

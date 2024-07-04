@@ -15,13 +15,13 @@ def _add_distance_to_train_probas_df(task_tuple, train_probas_df):
 
 def _sample_tasks(test_probas_df, class_name, sample_type, midpoint, task_dict, all_samples_dict):
     if sample_type == 'TP':
-        filtered_df = test_probas_df[(test_probas_df[class_name] == 1) & (test_probas_df[f'pred {class_name}'] == 1)]
+        filtered_df = test_probas_df[(test_probas_df[class_name] == 1) & (test_probas_df[f'proba {class_name}'] >= 0.5)]
         num_samples = 3
     elif sample_type == 'FN':
-        filtered_df = test_probas_df[(test_probas_df[class_name] == 1) & (test_probas_df[f'pred {class_name}'] == 0)]
+        filtered_df = test_probas_df[(test_probas_df[class_name] == 1) & (test_probas_df[f'proba {class_name}'] < 0.5)]
         num_samples = 2
     elif sample_type == 'FP':
-        filtered_df = test_probas_df[(test_probas_df[class_name] == 0) & (test_probas_df[f'pred {class_name}'] == 1)]
+        filtered_df = test_probas_df[(test_probas_df[class_name] == 0) & (test_probas_df[f'proba {class_name}'] >= 0.5)]
         num_samples = 2
     
     task_df = filtered_df.loc[(filtered_df[f'proba {class_name}'] - midpoint).abs().nsmallest(num_samples).index]
@@ -43,11 +43,11 @@ def _sample_examples(train_probas_df, class_name, task_name, task_tuple, task_di
         num_example_samples = settings['num_example_samples']
 
         if sample_type == 'TP':
-            filtered_df = train_probas_df[(train_probas_df[class_name] == 1) & (train_probas_df[f'pred {class_name}'] == 1)]
+            filtered_df = train_probas_df[(train_probas_df[class_name] == 1) & (train_probas_df[f'proba {class_name}'] >= 0.5)]
         elif sample_type == 'FN':
-            filtered_df = train_probas_df[(train_probas_df[class_name] == 1) & (train_probas_df[f'pred {class_name}'] == 0)]
+            filtered_df = train_probas_df[(train_probas_df[class_name] == 1) & (train_probas_df[f'proba {class_name}'] < 0.5)]
         elif sample_type == 'FP':
-            filtered_df = train_probas_df[(train_probas_df[class_name] == 0) & (train_probas_df[f'pred {class_name}'] == 1)]
+            filtered_df = train_probas_df[(train_probas_df[class_name] == 0) & (train_probas_df[f'proba {class_name}'] >= 0.5)]
 
         for index in range(0, num_task_samples):
             task_tuple_key = f'{class_name} {sample_type} Task {index + 1}'
@@ -65,21 +65,20 @@ def _sample_examples(train_probas_df, class_name, task_name, task_tuple, task_di
                 all_samples_dict[example_key] = example_tuple
 
 
-def _generate_samples_csvs(test_probas_df, train_probas_df, best_thresholds):
+def _generate_samples_csvs(test_probas_df, train_probas_df):
     # remove sentences from test_probas_df with 1 or less words when cleaned
     test_probas_df = test_probas_df[test_probas_df['cleaned_sentence'].apply(lambda x: len(x.split()) > 1)]
     test_probas_df = test_probas_df.reset_index(drop=True)
 
     class_names = [class_name for class_name in test_probas_df.columns[7:].tolist() if not (class_name.startswith('pred') or class_name.startswith('proba'))]
 
+    upper_midpoint = 0.75
+    lower_midpoint = 0.25
+
     all_samples_dict = {}
     task_dict = {}
 
     for class_name in class_names:
-        # get scores for class
-        upper_midpoint = (best_thresholds[class_name] + 1) / 2
-        lower_midpoint = best_thresholds[class_name] / 2
-
         # task sentences
 
         # sample 3 task sentences from true positives (closest to upper midpoint)
@@ -114,7 +113,7 @@ def _generate_samples_csvs(test_probas_df, train_probas_df, best_thresholds):
 
 if __name__ == '__main__':
     try:
-        test_probas_df = pd.read_csv('results/test_probas.csv')
+        test_probas_df = pd.read_csv('results/test/probas.csv')
         test_probas_df.loc[:, 'sentence_embedding'] = test_probas_df['sentence_embedding'].apply(
             lambda x: np.fromstring(
                 x.replace('\n','')
@@ -126,7 +125,7 @@ if __name__ == '__main__':
         # remove rows with less than 3 words when cleaned (to avoid LIME ZeroDivisionError)
         test_probas_df = test_probas_df[test_probas_df['cleaned_sentence'].apply(lambda x: len(x.split()) > 2)]
 
-        train_probas_df = pd.read_csv('results/train_probas.csv')
+        train_probas_df = pd.read_csv('results/train/probas.csv')
         train_probas_df.loc[:, 'sentence_embedding'] = train_probas_df['sentence_embedding'].apply(
             lambda x: np.fromstring(
                 x.replace('\n','')
@@ -138,11 +137,7 @@ if __name__ == '__main__':
         # remove rows with less than 3 words when cleaned (to avoid LIME ZeroDivisionError)
         train_probas_df = train_probas_df[train_probas_df['cleaned_sentence'].apply(lambda x: len(x.split()) > 2)]
 
-        # load best thresholds
-        with open('results/best_thresholds.json', 'r') as f:
-            best_thresholds = json.load(f)
-
         print('Sampling sentences...')
-        _generate_samples_csvs(test_probas_df, train_probas_df, best_thresholds)
+        _generate_samples_csvs(test_probas_df, train_probas_df)
     except FileNotFoundError as e:
-        print('results/test_probas.csv, results/train_probas.csv and/or results/scores.csv not found. Please run train.py first')
+        print('results/test/probas.csv, results/train/probas.csv and/or results/scores.csv not found. Please run train.py first')
