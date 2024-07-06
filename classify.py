@@ -12,9 +12,13 @@ def _add_pred_and_prob_to_csv(df, df_name, class_names, Y_prob):
     for class_index, class_name in enumerate(class_names):
         Y_pred[:, class_index] = (Y_prob[:, class_index] >= 0.5).astype(int)
 
-    prob_df = pd.DataFrame(Y_prob, columns=[f'proba {class_names}' for i, class_names in enumerate(class_names)])
+    pred_df = pd.DataFrame(Y_pred, columns=[f'pred {class_names}' for i, class_names in enumerate(class_names)])
     df = df.reset_index(drop=True)
+    df = pd.concat([df, pred_df], axis=1)
+
+    prob_df = pd.DataFrame(Y_prob, columns=[f'proba {class_names}' for i, class_names in enumerate(class_names)])
     df = pd.concat([df, prob_df], axis=1)
+    
     df.to_csv(f'results/{df_name}/probas.csv', index=False)
 
     return Y_pred
