@@ -63,8 +63,21 @@ def _sample_examples(train_probas_df, class_name, task_name, task_tuple, task_di
             task_tuple = task_dict[task_tuple_key]
             filtered_df_with_distance = _add_distance_to_train_probas_df(task_tuple, filtered_df)
 
-            max_example_samples = min(num_example_samples, len(filtered_df_with_distance.nsmallest(num_example_samples*2, 'distance')))
-            examples_df = filtered_df_with_distance.nsmallest(num_example_samples*2, 'distance').sample(n=max_example_samples)
+            # sort by distance and select examples one by one
+            sorted_df = filtered_df_with_distance.sort_values('distance')
+            
+            examples_list = []
+
+            for _, row in sorted_df.iterrows():
+                if len(examples_list) >= num_example_samples:
+                    break
+                if row['original_sentence'] not in [example['original_sentence'] for example in examples_list]:
+                    examples_list.append(row.to_dict())
+
+            examples_df = pd.DataFrame(examples_list)
+
+            # max_example_samples = min(num_example_samples, len(filtered_df_with_distance.nsmallest(num_example_samples*2, 'distance')))
+            # examples_df = filtered_df_with_distance.nsmallest(num_example_samples*2, 'distance').sample(n=max_example_samples)
 
             # drop selected examples from train_probas_df to avoid duplicates
             indices_to_drop = examples_df.index.intersection(train_probas_df.index)
