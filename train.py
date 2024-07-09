@@ -4,6 +4,7 @@ import GPUtil
 import xgboost
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
 from itertools import product
 from sklearn.metrics import f1_score
 from sklearn.model_selection import GridSearchCV, GroupKFold
@@ -68,7 +69,7 @@ def _train_and_validate(df):
         # 'subsample': [0.8, 1.0],
         'subsample': [0.7, 0.8, 0.9],
         'colsample_bytree': [0.8, 1.0],
-        'reg_lambda': [100]
+        'reg_lambda': [1000]
     }
 
     # Set up GroupKFold for cross-validation
@@ -79,7 +80,7 @@ def _train_and_validate(df):
     best_params = None
 
     # cross-validation loop
-    for fold_counter, (train_index, val_index) in enumerate(group_kfold.split(X_train, Y_train, groups_train)):
+    for fold_counter, (train_index, val_index) in tqdm(enumerate(group_kfold.split(X_train, Y_train, groups_train)), total=group_kfold.get_n_splits(), desc='Cross-validation folds'):
         X_train_fold, X_val_fold = X_train[train_index], X_train[val_index]
         Y_train_fold, Y_val_fold = Y_train[train_index], Y_train[val_index]
 
@@ -90,7 +91,7 @@ def _train_and_validate(df):
         dtrain = xgboost.QuantileDMatrix(X_train_fold, label=Y_train_fold)
         dval = xgboost.QuantileDMatrix(X_val_fold, label=Y_val_fold)
 
-        for params in [dict(zip(param_grid.keys(), v)) for v in product(*param_grid.values())]:
+        for params in tqdm([dict(zip(param_grid.keys(), v)) for v in product(*param_grid.values())], desc='Tuning hyperparameters', leave=False):
             params.update({
                 'objective': 'binary:logistic',
                 'eval_metric': 'logloss',
@@ -102,7 +103,7 @@ def _train_and_validate(df):
 
             # Train the model
             num_round = 100  # adjust this
-            clf = xgboost.train(params, dtrain, num_round, evals=[(dval, 'eval')], early_stopping_rounds=10)
+            clf = xgboost.train(params, dtrain, num_round, evals=[(dval, 'eval')], early_stopping_rounds=10, verbose_eval=False)
 
             # Predict on validation set
             y_pred_proba = clf.predict(dval)

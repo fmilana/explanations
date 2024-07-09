@@ -43,7 +43,7 @@ def _sample_tasks(test_probas_df, class_name, sample_type, midpoint, task_dict, 
 def _sample_examples(train_probas_df, class_name, task_name, task_tuple, task_dict, all_samples_dict, used_sentences):
     sample_types = {'TP': {'num_task_samples': 3, 'num_example_samples': 6}, # sample 6 examples (for 3 tasks)
                     'FN': {'num_task_samples': 6, 'num_example_samples': 6}, # sample more than 3 examples to account for mistakes in coding (for more than 2 tasks to account for mistakes in coding)
-                    'FP': {'num_task_samples': 9, 'num_example_samples': 12}} # sample more than 3 examples to account for mistakes in coding (for more than 2 tasks to account for mistakes in coding)
+                    'FP': {'num_task_samples': 9, 'num_example_samples': 18}} # sample more than 3 examples to account for mistakes in coding (for more than 2 tasks to account for mistakes in coding)
 
     for sample_type, settings in sample_types.items():
         num_task_samples = settings['num_task_samples']

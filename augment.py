@@ -117,24 +117,24 @@ def _MLSMOTE(X, y, n_sample):
 def oversample(X, Y):
     X_shape_old = X.shape
     class_dist = [y/Y.shape[0] for y in Y.sum(axis=0)]
-    print('checking for minority classes in train split...')
+    # print('checking for minority classes in train split...')
     X_sub, Y_sub = _get_minority_samples(pd.DataFrame(X), pd.DataFrame(Y))
 
     if np.shape(X_sub)[0] > 0: # only oversample training set if minority samples are found
-        print('minority classes found.')
-        print('oversampling...')
+        # print('minority classes found.')
+        # print('oversampling...')
         try:
             X_res, Y_res = _MLSMOTE(X_sub, Y_sub, round(X.shape[0]/5))       
             X = np.concatenate((X, X_res.to_numpy())) # append augmented samples
             Y = np.concatenate((Y, Y_res.to_numpy())) # to original dataframes
-            print('oversampled.')
+            # print('oversampled.')
             class_dist_os = [y/Y.shape[0] for y in Y.sum(axis=0)]
-            print('CLASS DISTRIBUTION:')
-            print(f'Before MLSMOTE: {X_shape_old}, {class_dist}')
-            print(f'After MLSMOTE: {X.shape}, {class_dist_os}')
+            # print('CLASS DISTRIBUTION:')
+            # print(f'Before MLSMOTE: {X_shape_old}, {class_dist}')
+            # print(f'After MLSMOTE: {X.shape}, {class_dist_os}')
         except ValueError:
             print('could not oversample because n_samples < n_neighbors in some classes')
-    else:
-        print('no minority classes.')
+    # else:
+    #     print('no minority classes.')
     return X, Y
     
