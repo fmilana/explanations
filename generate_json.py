@@ -1,4 +1,3 @@
-import ast
 import random
 import re
 import json
@@ -12,9 +11,10 @@ from occlusion_explain import get_occlusion_weights
 from shap_explain import get_shap_weights
 from vectorizer import Sentence2Vec
 from custom_pipeline import CustomPipeline
+from tqdm import tqdm
 
 
-def _create_json_entry(sentence, cleaned_sentence, proba, lime_weights, shap_weights, occlusion_weights):
+def _create_json_entry(sentence, cleaned_sentence, proba, distance, lime_weights, shap_weights, occlusion_weights):
     # extract tokens from sentence (including punctuation, symbols and whitespace)
     tokens = regex.findall(r'\b\p{L}+\b|\S|\s', sentence)
     # extract words from cleaned_sentence
@@ -35,7 +35,8 @@ def _create_json_entry(sentence, cleaned_sentence, proba, lime_weights, shap_wei
 
     return {
         'sentence': sentence,
-        'classification_score': proba,
+        'score': proba,
+        'distance': distance,
         'parts': parts
     }
 
@@ -54,21 +55,16 @@ def _generate_file(clf, class_names, samples_df, json_path, lime_optimized):
 
     pipeline = CustomPipeline(steps=[('vectorizer', Sentence2Vec()), ('classifier', clf)])
 
-    total_number_of_sentences = len(sample_dict)
-    progress_counter = 0
-
-    for sample in sample_dict:
+    for sample in tqdm(sample_dict, desc='Processing sentences'):
         name = sample['name']
         original_sentence = sample['original_sentence']
         cleaned_sentence = sample['cleaned_sentence']
         proba = sample['proba']
+        distance = sample['distance']
         class_name = sample['class_name']
 
         lime_weights, shap_weights, occlusion_weights = _get_all_weights(pipeline, class_names, cleaned_sentence, class_name, proba, lime_optimized)
-        json_dict[name] = _create_json_entry(original_sentence, cleaned_sentence, proba, lime_weights, shap_weights, occlusion_weights)
-
-        print(f'{progress_counter+1}/{total_number_of_sentences} sentences processed.', end='\r')
-        progress_counter += 1
+        json_dict[name] = _create_json_entry(original_sentence, cleaned_sentence, proba, distance, lime_weights, shap_weights, occlusion_weights)
 
     with open(json_path, 'w', encoding='utf-8') as f:
         json.dump(json_dict, f, indent=4, ensure_ascii=False)

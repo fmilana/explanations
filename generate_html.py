@@ -1,5 +1,6 @@
 import re
 import json
+from tqdm import tqdm
 from draw import get_weight_range, get_weight_rgba
 
 
@@ -15,9 +16,9 @@ def _add_title(title,  html_paths):
             f.write(f'<h1>{title}</h1>\n')
 
 
-def _add_section(sentence, tokens, score, lime_weights, shap_weights, occlusion_weights, html_paths):
+def _add_section(sentence, tokens, score, distance, lime_weights, shap_weights, occlusion_weights, html_paths):
     with open(html_paths[0], 'a', encoding='utf-8') as f:
-        f.write(f'<h2>score: {score:.2f}</h2>\n')
+        f.write(f'<h2>score: {score:.2f}, distance: {distance:.2f}</h2>\n')
         # Write to original.html
         with open(html_paths[1], 'a', encoding='utf-8') as orig_file:
             orig_file.write('<h3>ORIGINAL</h3>\n')
@@ -32,6 +33,7 @@ def _add_section(sentence, tokens, score, lime_weights, shap_weights, occlusion_
         # Write to lime.html
         lime_html = _get_sentence_html(tokens, lime_weights)
         with open(html_paths[2], 'a', encoding='utf-8') as lime_file:
+            lime_file.write(f'<h2>score: {score:.2f}, distance: {distance:.2f}</h2>\n')
             lime_file.write('<h3>LIME</h3>\n')
             lime_file.write(lime_html)
             lime_file.write('\n<br><br>\n')
@@ -44,6 +46,7 @@ def _add_section(sentence, tokens, score, lime_weights, shap_weights, occlusion_
         # Write to shap.html
         shap_html = _get_sentence_html(tokens, shap_weights)
         with open(html_paths[3], 'a', encoding='utf-8') as shap_file:
+            shap_file.write(f'<h2>score: {score:.2f}, distance: {distance:.2f}</h2>\n')
             shap_file.write('<h3>SHAP</h3>\n')
             shap_file.write(shap_html)
             shap_file.write('\n<br><br>\n')
@@ -56,6 +59,7 @@ def _add_section(sentence, tokens, score, lime_weights, shap_weights, occlusion_
         # Write to occlusion.html
         occlusion_html = _get_sentence_html(tokens, occlusion_weights)
         with open(html_paths[4], 'a', encoding='utf-8') as occlusion_file:
+            occlusion_file.write(f'<h2>score: {score:.2f}, distance: {distance:.2f}</h2>\n')
             occlusion_file.write('<h3>OCCLUSION</h3>\n')
             occlusion_file.write(occlusion_html)
             occlusion_file.write('\n<br><br>\n')
@@ -106,14 +110,12 @@ def _get_sentence_html(tokens, weights):
 def _generate_files(results_json, html_paths):    
     _add_style(html_paths)
 
-    total_items = len(results_json)
-    progress_counter = 0
-
-    for key, value in results_json.items():
+    for key, value in tqdm(results_json.items(), desc='Adding sentences to HTML files'):
         _add_title(key, html_paths)
 
         sentence = value['sentence']
-        score = value['classification_score']
+        score = value['score']
+        distance = value['distance']
         parts = value['parts']
 
         tokens = [part['token'] for part in parts]
@@ -121,10 +123,7 @@ def _generate_files(results_json, html_paths):
         shap_weights = [part['shap_weight'] for part in parts]
         occlusion_weights = [part['occlusion_weight'] for part in parts]
 
-        _add_section(sentence, tokens, score, lime_weights, shap_weights, occlusion_weights, html_paths)
-
-        print(f'{progress_counter+1}/{total_items} sentences added.', end='\r')
-        progress_counter += 1
+        _add_section(sentence, tokens, score, distance, lime_weights, shap_weights, occlusion_weights, html_paths)
 
 
 if __name__ == '__main__':

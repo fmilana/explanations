@@ -19,10 +19,10 @@ def _sample_tasks(test_probas_df, class_name, sample_type, midpoint, task_dict, 
         num_samples = 3
     elif sample_type == 'FN':
         filtered_df = test_probas_df[(test_probas_df[class_name] == 1) & (test_probas_df[f'proba {class_name}'] < 0.5)]
-        num_samples = 2
+        num_samples = 8 # sample more than 2 examples to account for mistakes in coding
     elif sample_type == 'FP':
         filtered_df = test_probas_df[(test_probas_df[class_name] == 0) & (test_probas_df[f'proba {class_name}'] >= 0.5)]
-        num_samples = 2
+        num_samples = 8 # sample more than 2 examples to account for mistakes in coding
     
     task_df = filtered_df.loc[(filtered_df[f'proba {class_name}'] - midpoint).abs().nsmallest(num_samples).index]
 
@@ -44,8 +44,8 @@ def _sample_tasks(test_probas_df, class_name, sample_type, midpoint, task_dict, 
 
 def _sample_examples(train_probas_df, class_name, task_name, task_tuple, task_dict, all_samples_dict):
     sample_types = {'TP': {'num_task_samples': 3, 'num_example_samples': 6}, 
-                    'FN': {'num_task_samples': 2, 'num_example_samples': 9}, # sample more than 3 examples to account for mistakes in coding
-                    'FP': {'num_task_samples': 2, 'num_example_samples': 9}} # sample more than 3 examples to account for mistakes in coding
+                    'FN': {'num_task_samples': 8, 'num_example_samples': 12}, # sample more than 3 examples to account for mistakes in coding
+                    'FP': {'num_task_samples': 8, 'num_example_samples': 12}} # sample more than 3 examples to account for mistakes in coding
 
     for sample_type, settings in sample_types.items():
         num_task_samples = settings['num_task_samples']
