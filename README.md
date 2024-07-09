@@ -56,9 +56,13 @@ python train.py
 python classify.py
 ```
 
-3. Sample sentences (saved in results/samples.csv):
+3. Sample sentences from all classes (saved in results/samples.csv):
 ```
 python sample.py
+```
+or sample sentences from selected classes only:
+```
+python sample.py --class-names "food and drinks" "opinions"
 ```
 
 4. Generate JSON (saved in output/json/output.json):

@@ -1,3 +1,4 @@
+import argparse
 import re
 import json
 import random
@@ -44,8 +45,8 @@ def _sample_tasks(test_probas_df, class_name, sample_type, midpoint, task_dict, 
 
 def _sample_examples(train_probas_df, class_name, task_name, task_tuple, task_dict, all_samples_dict):
     sample_types = {'TP': {'num_task_samples': 3, 'num_example_samples': 6}, 
-                    'FN': {'num_task_samples': 8, 'num_example_samples': 12}, # sample more than 3 examples to account for mistakes in coding
-                    'FP': {'num_task_samples': 8, 'num_example_samples': 12}} # sample more than 3 examples to account for mistakes in coding
+                    'FN': {'num_task_samples': 8, 'num_example_samples': 18}, # sample more than 3 examples to account for mistakes in coding
+                    'FP': {'num_task_samples': 8, 'num_example_samples': 18}} # sample more than 3 examples to account for mistakes in coding
 
     for sample_type, settings in sample_types.items():
         num_task_samples = settings['num_task_samples']
@@ -94,12 +95,12 @@ def _sample_examples(train_probas_df, class_name, task_name, task_tuple, task_di
     return train_probas_df
 
 
-def _generate_samples_csvs(test_probas_df, train_probas_df):
+def _generate_samples_csvs(test_probas_df, train_probas_df, class_names):
     # remove sentences from test_probas_df with 1 or less words when cleaned
     test_probas_df = test_probas_df[test_probas_df['cleaned_sentence'].apply(lambda x: len(x.split()) > 1)]
     test_probas_df = test_probas_df.reset_index(drop=True)
 
-    class_names = [class_name for class_name in test_probas_df.columns[7:].tolist() if not (class_name.startswith('pred') or class_name.startswith('proba'))]
+    # class_names = [class_name for class_name in test_probas_df.columns[7:].tolist() if not (class_name.startswith('pred') or class_name.startswith('proba'))]
 
     upper_midpoint = 0.75
     lower_midpoint = 0.25
@@ -141,6 +142,12 @@ def _generate_samples_csvs(test_probas_df, train_probas_df):
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Process class names.')
+    parser.add_argument('--class-names', nargs='*', help='Class names to sample tasks and examples for', default=[])
+    args = parser.parse_args()
+
+    args_class_names = args.class_names
+
     try:
         test_probas_df = pd.read_csv('results/test/probas.csv')
         test_probas_df.loc[:, 'sentence_embedding'] = test_probas_df['sentence_embedding'].apply(
@@ -166,7 +173,24 @@ if __name__ == '__main__':
         # remove rows with less than 3 words when cleaned (to avoid LIME ZeroDivisionError)
         train_probas_df = train_probas_df[train_probas_df['cleaned_sentence'].apply(lambda x: len(x.split()) > 2)]
 
+        all_class_names = [class_name for class_name in test_probas_df.columns[7:].tolist() if not (class_name.startswith('pred') or class_name.startswith('proba'))]
+
+        try:
+            if len(args_class_names) == 0:
+                class_names = all_class_names
+            else:
+                # check if args_class_names are valid
+                for class_name in args_class_names:
+                    if class_name not in all_class_names:
+                        raise ValueError(f'"{class_name}" is not a valid class name. Valid class names are: {all_class_names}')
+                class_names = args_class_names
+        except ValueError as e:
+            print(e)
+            print('Please provide valid class names to sample tasks and examples for')
+            print('Valid class names are:', all_class_names)
+            exit()
+
         print('Sampling sentences...')
-        _generate_samples_csvs(test_probas_df, train_probas_df)
+        _generate_samples_csvs(test_probas_df, train_probas_df, class_names)
     except FileNotFoundError as e:
         print('results/test/probas.csv, results/train/probas.csv and/or results/scores.csv not found. Please run train.py first')
