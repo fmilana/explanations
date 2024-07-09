@@ -67,7 +67,7 @@ python sample.py
 python generate_json.py
 ```
 
-5. Generate HTML from JSON (saved in output/html/output.html):
+5. Generate HTML from JSON (saved in output/html/):
 ```
 python generate_html.py
 ```

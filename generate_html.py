@@ -3,35 +3,67 @@ import json
 from draw import get_weight_range, get_weight_rgba
 
 
-def _add_style(html_path):
-    with open(html_path, 'w', encoding='utf-8') as f:
-        f.write(f'<style> body {{font-family: arial; text-align: center;}}</style>\n')
+def _add_style(html_paths):
+    for html_path in html_paths:
+        with open(html_path, 'w', encoding='utf-8') as f:
+            f.write(f'<style> body {{font-family: arial; text-align: center;}}</style>\n')
 
 
-def _add_title(title,  html_path):
-    with open(html_path, 'a+', encoding='utf-8') as f:
-        f.write(f'<h1>{title}</h1>\n')
+def _add_title(title,  html_paths):
+    for html_path in html_paths:
+        with open(html_path, 'a', encoding='utf-8') as f:
+            f.write(f'<h1>{title}</h1>\n')
 
 
-def _add_section(sentence, tokens, score, lime_weights, shap_weights, occlusion_weights, is_query, html_path):
-    with open(html_path, 'a+', encoding='utf-8') as f:
+def _add_section(sentence, tokens, score, lime_weights, shap_weights, occlusion_weights, html_paths):
+    with open(html_paths[0], 'a', encoding='utf-8') as f:
         f.write(f'<h2>score: {score:.2f}</h2>\n')
-        if is_query:
-            f.write(f'<p style="color: black; font-family: Arial; text-align: center; line-height: 2; margin: 0;">"{sentence}"</p>')
-            f.write('\n<br><br>\n')
-        else:
-            f.write('<h3>ORIGINAL</h3>\n')
-            f.write(f'<p style="color: black; font-family: Arial; text-align: center; line-height: 2; margin: 0;">"{sentence}"</p>')
-            f.write('\n<br><br>\n')
-            f.write('<h3>LIME</h3>\n')
-            f.write(_get_sentence_html(tokens, lime_weights))
-            f.write('\n<br><br>\n')
-            f.write('<h3>SHAP</h3>\n')
-            f.write(_get_sentence_html(tokens, shap_weights))
-            f.write('\n<br><br>\n')
-            f.write('<h3>OCCLUSION</h3>\n')
-            f.write(_get_sentence_html(tokens, occlusion_weights))
-            f.write('\n<br><br>\n')
+        # Write to original.html
+        with open(html_paths[1], 'a', encoding='utf-8') as orig_file:
+            orig_file.write('<h3>ORIGINAL</h3>\n')
+            orig_file.write(f'<p style="color: black; font-family: Arial; text-align: center; line-height: 2; margin: 0;">"{sentence}"</p>')
+            orig_file.write('\n<br><br>\n')
+
+        # Append original sentence to the main HTML file (output.html)
+        f.write('<h3>ORIGINAL</h3>\n')
+        f.write(f'<p style="color: black; font-family: Arial; text-align: center; line-height: 2; margin: 0;">"{sentence}"</p>')
+        f.write('\n<br><br>\n')
+
+        # Write to lime.html
+        lime_html = _get_sentence_html(tokens, lime_weights)
+        with open(html_paths[2], 'a', encoding='utf-8') as lime_file:
+            lime_file.write('<h3>LIME</h3>\n')
+            lime_file.write(lime_html)
+            lime_file.write('\n<br><br>\n')
+
+        # Append LIME to the main HTML file (output.html)
+        f.write('<h3>LIME</h3>\n')
+        f.write(lime_html)
+        f.write('\n<br><br>\n')
+
+        # Write to shap.html
+        shap_html = _get_sentence_html(tokens, shap_weights)
+        with open(html_paths[3], 'a', encoding='utf-8') as shap_file:
+            shap_file.write('<h3>SHAP</h3>\n')
+            shap_file.write(shap_html)
+            shap_file.write('\n<br><br>\n')
+
+        # Append SHAP to the main HTML file
+        f.write('<h3>SHAP</h3>\n')
+        f.write(shap_html)
+        f.write('\n<br><br>\n')
+
+        # Write to occlusion.html
+        occlusion_html = _get_sentence_html(tokens, occlusion_weights)
+        with open(html_paths[4], 'a', encoding='utf-8') as occlusion_file:
+            occlusion_file.write('<h3>OCCLUSION</h3>\n')
+            occlusion_file.write(occlusion_html)
+            occlusion_file.write('\n<br><br>\n')
+
+        # Append Occlusion to the main HTML file (output.html)
+        f.write('<h3>OCCLUSION</h3>\n')
+        f.write(occlusion_html)
+        f.write('\n<br><br>\n')
         
 
 def _get_sentence_html(tokens, weights):
@@ -71,12 +103,14 @@ def _get_sentence_html(tokens, weights):
     return sentence_html
 
 
-def _generate_file(results_json, html_path):
-    # add style
-    _add_style(html_path)
+def _generate_files(results_json, html_paths):    
+    _add_style(html_paths)
+
+    total_items = len(results_json)
+    progress_counter = 0
 
     for key, value in results_json.items():
-        _add_title(key, html_path)
+        _add_title(key, html_paths)
 
         sentence = value['sentence']
         score = value['classification_score']
@@ -87,16 +121,18 @@ def _generate_file(results_json, html_path):
         shap_weights = [part['shap_weight'] for part in parts]
         occlusion_weights = [part['occlusion_weight'] for part in parts]
 
-        is_query = key.endswith('Query')
+        _add_section(sentence, tokens, score, lime_weights, shap_weights, occlusion_weights, html_paths)
 
-        _add_section(sentence, tokens, score, lime_weights, shap_weights, occlusion_weights, is_query, html_path)
+        print(f'{progress_counter+1}/{total_items} sentences added.', end='\r')
+        progress_counter += 1
 
 
 if __name__ == '__main__':
     try:
         results_json = json.load(open('output/json/output.json', 'r', encoding='utf-8'))
-        print('Generating HTML...')
-        _generate_file(results_json, 'output/html/output.html')
-        print('HTML saved in output/html/output.html')
+        html_paths = ['output/html/output.html', 'output/html/original.html', 'output/html/lime.html', 'output/html/shap.html', 'output/html/occlusion.html']
+        print('Generating HTML files...')
+        _generate_files(results_json, html_paths)
+        print('HTML files saved in output/html/')
     except FileNotFoundError:
         print('JSON not found. Please run generate_json.py first.')
