@@ -82,9 +82,9 @@ def _generate_cm_csv(df, df_name, class_names, Y_pred, Y_true):
 
 def _predict_set(df, df_name, clf):
     X = np.array(df['sentence_embedding'].tolist())
-    Y = np.array(df.iloc[:, 7:])
+    Y = np.array(df.iloc[:, 5:])
 
-    class_names = df.columns[7:].tolist()
+    class_names = df.columns[5:].tolist()
 
     # predict probabilities on the test set
     dx = xgboost.DMatrix(X) # create DMatrix

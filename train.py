@@ -25,7 +25,7 @@ def _train_and_validate(df):
     df = df[df['cleaned_sentence'].notnull()]
 
     # Get list of class names
-    class_names = df.columns[7:].tolist()
+    class_names = df.columns[5:].tolist()
 
     # Process sentence embedding strings
     df.loc[:, 'sentence_embedding'] = df['sentence_embedding'].apply(
@@ -39,7 +39,7 @@ def _train_and_validate(df):
 
     # Prepare data
     X = np.array(df['sentence_embedding'].tolist())
-    Y = np.array(df.iloc[:, 7:])
+    Y = np.array(df.iloc[:, 5:])
     
     groups = df['review_id'].values  # Use review_id for grouping in cross-validation
 

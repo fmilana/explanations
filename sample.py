@@ -20,10 +20,10 @@ def _sample_tasks(test_probas_df, class_name, sample_type, midpoint, task_dict, 
         num_samples = 3
     elif sample_type == 'FN':
         filtered_df = test_probas_df[(test_probas_df[class_name] == 1) & (test_probas_df[f'proba {class_name}'] < 0.5)]
-        num_samples = 6 # sample more than 2 examples to account for mistakes in coding
+        num_samples = 2
     elif sample_type == 'FP':
         filtered_df = test_probas_df[(test_probas_df[class_name] == 0) & (test_probas_df[f'proba {class_name}'] >= 0.5)]
-        num_samples = 9 # sample more than 2 examples to account for mistakes in coding
+        num_samples = 2
     
     task_df = filtered_df.loc[(filtered_df[f'proba {class_name}'] - midpoint).abs().nsmallest(num_samples).index]
 
@@ -41,9 +41,9 @@ def _sample_tasks(test_probas_df, class_name, sample_type, midpoint, task_dict, 
 
 
 def _sample_examples(train_probas_df, class_name, task_name, task_tuple, task_dict, all_samples_dict, used_sentences):
-    sample_types = {'TP': {'num_task_samples': 3, 'num_example_samples': 6}, # sample 6 examples (for 3 tasks)
-                    'FN': {'num_task_samples': 6, 'num_example_samples': 6}, # sample more than 3 examples to account for mistakes in coding (for more than 2 tasks to account for mistakes in coding)
-                    'FP': {'num_task_samples': 9, 'num_example_samples': 18}} # sample more than 3 examples to account for mistakes in coding (for more than 2 tasks to account for mistakes in coding)
+    sample_types = {'TP': {'num_task_samples': 3, 'num_example_samples': 6},
+                    'FN': {'num_task_samples': 2, 'num_example_samples': 3},
+                    'FP': {'num_task_samples': 2, 'num_example_samples': 3}}
 
     for sample_type, settings in sample_types.items():
         num_task_samples = settings['num_task_samples']
@@ -161,7 +161,7 @@ if __name__ == '__main__':
         # remove rows with less than 3 words when cleaned (to avoid LIME ZeroDivisionError)
         train_probas_df = train_probas_df[train_probas_df['cleaned_sentence'].apply(lambda x: len(x.split()) > 2)]
 
-        all_class_names = [class_name for class_name in test_probas_df.columns[7:].tolist() if not (class_name.startswith('pred') or class_name.startswith('proba'))]
+        all_class_names = [class_name for class_name in test_probas_df.columns[5:].tolist() if not (class_name.startswith('pred') or class_name.startswith('proba'))]
 
         try:
             if len(args_class_names) == 0:

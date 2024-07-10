@@ -76,7 +76,7 @@ if __name__ == '__main__':
         clf.load_model('model/xgb_model.json')
         clf = MultiLabelProbClassifier(clf) # wrap the model in a MultiLabelProbClassifier for LIME
         train_df = pd.read_csv('data/train.csv')
-        class_names = train_df.columns[7:].tolist()
+        class_names = train_df.columns[5:].tolist()
         samples_df = pd.read_csv('results/samples.csv')
         print('Generating JSON...')
         _generate_file(clf, class_names, samples_df, 'output/json/output.json', lime_optimized=True)
