@@ -47,7 +47,7 @@ def _train_and_validate(df):
 
     # Split data into training and test sets
     unique_review_ids = df['review_id'].unique()
-    random.seed(42)
+    random.seed(41)
     test_review_ids = random.sample(list(unique_review_ids), 5) # 5 random review_ids for test set
     train_review_ids = [review_id for review_id in unique_review_ids if review_id not in test_review_ids]
 
@@ -60,17 +60,21 @@ def _train_and_validate(df):
 
     device = _get_device()
 
-    # Define parameter grid
+    # Define parameter grid for hyperparameter tuning
+    # Set values to tune for each hyperparameter here
     param_grid = {
         # 'max_depth': [4, 5, 6],
-        'max_depth': [2, 3],
+        'max_depth': [5],
+        'min_child_weight': [2],
+        # 'gamma': [0.01],
         # 'learning_rate': [0.01, 0.1, 0.3],
-        'learning_rate': [0.1, 0.3, 0.5],
+        'learning_rate': [1],
         # 'subsample': [0.8, 1.0],
-        'subsample': [0.7, 0.8, 0.9],
-        'colsample_bytree': [0.8, 1.0],
-        'reg_lambda': [1000]
+        'subsample': [0.7],
+        'colsample_bytree': [0.8],
+        'reg_lambda': [10000]
     }
+    ########################################################
 
     # Set up GroupKFold for cross-validation
     n_splits = 4
@@ -102,8 +106,8 @@ def _train_and_validate(df):
             params_key = str(params)
 
             # Train the model
-            num_round = 100  # adjust this
-            clf = xgboost.train(params, dtrain, num_round, evals=[(dval, 'eval')], early_stopping_rounds=10, verbose_eval=False)
+            max_num_boost_round = 999
+            clf = xgboost.train(params, dtrain, max_num_boost_round, evals=[(dval, 'eval')], early_stopping_rounds=10, verbose_eval=False)
 
             # Predict on validation set
             y_pred_proba = clf.predict(dval)
@@ -121,9 +125,12 @@ def _train_and_validate(df):
     # Train final model on all training data
     # Oversample minority class (if needed)
     X_train, Y_train = oversample(X_train, Y_train)
+    
     # Create QuantileDMatrix
     dtrain_full = xgboost.QuantileDMatrix(X_train, label=Y_train)
-    final_model = xgboost.train(best_params, dtrain_full, num_round)
+
+    # Train the model with best hyperparameters
+    final_model = xgboost.train(best_params, dtrain_full, max_num_boost_round)
 
     # Evaluate final model on test set
     dtest = xgboost.QuantileDMatrix(X_test, label=Y_test)
@@ -133,6 +140,16 @@ def _train_and_validate(df):
     # Calculate and print final F1 score on test set
     final_score_test = f1_score(Y_test, Y_pred_test, average='weighted')
     print('Final F1 Score on Test Set:', final_score_test)
+
+    # Save best hyperparameters to a text file
+    with open('model/best_hyperparameters.txt', 'w') as file:
+        file.write('Best hyperparameters:\n')
+        for param, value in best_params.items():
+            file.write(f'{param}: {value}\n')
+        file.write(f'Best cross-validation score: {best_score}\n')
+        file.write(f'Final F1 Score on Test Set: {final_score_test}\n')
+
+    print('Saved best hyperparameters to model/best_hyperparameters.txt')
 
     # get train and test dfs and save to csv
     df[train_mask].to_csv('data/train.csv', index=False)
