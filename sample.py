@@ -15,6 +15,8 @@ def _add_distance_to_train_probas_df(task_tuple, train_probas_df):
 
 
 def _sample_tasks(test_probas_df, class_name, sample_type, midpoint, task_dict, all_samples_dict, used_sentences):
+    sampled = 0
+
     if sample_type == 'TP':
         filtered_df = test_probas_df[(test_probas_df[class_name] == 1) & (test_probas_df[f'proba {class_name}'] >= 0.5)]
         num_samples = 3
@@ -35,52 +37,51 @@ def _sample_tasks(test_probas_df, class_name, sample_type, midpoint, task_dict, 
         all_samples_dict[f'{class_name} {sample_type} Task {index + 1}'] = task_tuple
         used_sentences.add(row['original_sentence'])
 
-    # return used_sentences to avoid duplicates
+        sampled += 1
+
+    if sampled < num_samples:
+        print(f'Warning: Not enough {sample_type} Task samples for class "{class_name}" in test set. Expected {num_samples}, got {sampled}')
+
     return used_sentences
 
 
+def _sample_examples(train_probas_df, class_name, task_name, task_tuple, sample_type, all_samples_dict, used_sentences):
+    sampled = 0
 
-def _sample_examples(train_probas_df, class_name, task_name, task_tuple, task_dict, all_samples_dict, used_sentences):
-    sample_types = {'TP': {'num_task_samples': 3, 'num_example_samples': 6},
-                    'FN': {'num_task_samples': 2, 'num_example_samples': 3},
-                    'FP': {'num_task_samples': 2, 'num_example_samples': 3}}
+    if sample_type == 'TP':
+        filtered_df = train_probas_df[(train_probas_df[class_name] == 1) & (train_probas_df[f'proba {class_name}'] >= 0.5)]
+        num_samples = 6
+    elif sample_type == 'FN':
+        filtered_df = train_probas_df[(train_probas_df[class_name] == 1) & (train_probas_df[f'proba {class_name}'] < 0.5)]
+        num_samples = 3
+    elif sample_type == 'FP':
+        filtered_df = train_probas_df[(train_probas_df[class_name] == 0) & (train_probas_df[f'proba {class_name}'] >= 0.5)]
+        num_samples = 3
 
-    for sample_type, settings in sample_types.items():
-        num_task_samples = settings['num_task_samples']
-        num_example_samples = settings['num_example_samples']
+    filtered_df_with_distance = _add_distance_to_train_probas_df(task_tuple, filtered_df)
+    sorted_df = filtered_df_with_distance.sort_values('distance')
+    examples_list = []
 
-        if sample_type == 'TP':
-            filtered_df = train_probas_df[(train_probas_df[class_name] == 1) & (train_probas_df[f'proba {class_name}'] >= 0.5)]
-        elif sample_type == 'FN':
-            filtered_df = train_probas_df[(train_probas_df[class_name] == 1) & (train_probas_df[f'proba {class_name}'] < 0.5)]
-        elif sample_type == 'FP':
-            filtered_df = train_probas_df[(train_probas_df[class_name] == 0) & (train_probas_df[f'proba {class_name}'] >= 0.5)]
+    for _, row in sorted_df.iterrows():
+        if len(examples_list) >= num_samples:
+            break
+        if row['original_sentence'] not in used_sentences:
+            examples_list.append(row.to_dict())
+            used_sentences.add(row['original_sentence'])
 
-        for index in range(0, num_task_samples):
-            task_tuple_key = f'{class_name} {sample_type} Task {index + 1}'
-            task_tuple = task_dict[task_tuple_key]
-            filtered_df_with_distance = _add_distance_to_train_probas_df(task_tuple, filtered_df)
+    examples_df = pd.DataFrame(examples_list)
+    examples_df.reset_index(drop=True, inplace=True)
 
-            # sort by distance and select examples one by one
-            sorted_df = filtered_df_with_distance.sort_values('distance')
-            examples_list = []
+    for example_index, example_row in examples_df.iterrows():
+        example_key = f'{task_name} {sample_type} Example {example_index + 1}'
+        example_tuple = (example_row['original_sentence'], example_row['cleaned_sentence'], class_name, example_row[f'proba {class_name}'], example_row['distance'])
+        all_samples_dict[example_key] = example_tuple
 
-            for _, row in sorted_df.iterrows():
-                if len(examples_list) >= num_example_samples:
-                    break
-                if row['original_sentence'] not in used_sentences:
-                    examples_list.append(row.to_dict())
-                    used_sentences.add(row['original_sentence'])
+        sampled += 1
 
-            examples_df = pd.DataFrame(examples_list)
-            examples_df.reset_index(drop=True, inplace=True)
+    if sampled < num_samples:
+        print(f'Warning: Not enough {sample_type} Example samples for class "{class_name}" in training set. Expected {num_samples}, got {sampled}')
 
-            for example_index, example_row in examples_df.iterrows():
-                example_key = f'{task_name} {sample_type} Example {example_index + 1}'
-                example_tuple = (example_row['original_sentence'], example_row['cleaned_sentence'], class_name, example_row[f'proba {class_name}'], example_row['distance'])
-                all_samples_dict[example_key] = example_tuple
-
-    # return used_sentences to avoid duplicates
     return used_sentences
 
 
@@ -94,22 +95,26 @@ def _generate_samples_csvs(test_probas_df, train_probas_df, class_names):
 
     all_samples_dict = {}
     task_dict = {}
-    used_sentences = set()
+
+    used_sentences = set() # move this inside the next loop if duplicate samples across classes are allowed
 
     for class_name in class_names:
-        # task sentences
-
+        # for each class, sample tasks
         # sample 3 task sentences from true positives (closest to upper midpoint)
         used_sentences = _sample_tasks(test_probas_df, class_name, 'TP', upper_midpoint, task_dict, all_samples_dict, used_sentences)
         # sample 8 task sentences from false negatives (closest to lower midpoint)
         used_sentences = _sample_tasks(test_probas_df, class_name, 'FN', lower_midpoint, task_dict, all_samples_dict, used_sentences)
         # sample 8 task sentences from false positives (closest to upper midpoint)
-        _ = _sample_tasks(test_probas_df, class_name, 'FP', upper_midpoint, task_dict, all_samples_dict, used_sentences)
+        used_sentences = _sample_tasks(test_probas_df, class_name, 'FP', upper_midpoint, task_dict, all_samples_dict, used_sentences)
 
-        # example sentences
-
+        # for each task, sample examples
         for task_name, task_tuple in task_dict.items():
-            used_sentences = _sample_examples(train_probas_df, class_name, task_name, task_tuple, task_dict, all_samples_dict, used_sentences)
+            # sample 6 examples sentences from true positives (closest to task sentence)
+            used_sentences = _sample_examples(train_probas_df, class_name, task_name, task_tuple, 'TP', all_samples_dict, used_sentences)
+            # sample 3 examples sentences from false negatives (closest to task sentence)
+            used_sentences = _sample_examples(train_probas_df, class_name, task_name, task_tuple, 'FN', all_samples_dict, used_sentences)
+            # sample 3 examples sentences from false positives (closest to task sentence)
+            used_sentences = _sample_examples(train_probas_df, class_name, task_name, task_tuple, 'FP', all_samples_dict, used_sentences)
 
         task_dict = {}
 
@@ -146,7 +151,7 @@ if __name__ == '__main__':
                 .replace(']',''), sep=' '
             )
         )
-        # remove rows with less than 3 words when cleaned (to avoid LIME ZeroDivisionError)
+        # remove rows with 2 or fewer cleaned words (to avoid LIME ZeroDivisionError)
         test_probas_df = test_probas_df[test_probas_df['cleaned_sentence'].apply(lambda x: len(x.split()) > 2)]
 
         train_probas_df = pd.read_csv('results/train/probas.csv')
@@ -158,7 +163,7 @@ if __name__ == '__main__':
                 .replace(']',''), sep=' '
             )
         )
-        # remove rows with less than 3 words when cleaned (to avoid LIME ZeroDivisionError)
+        # remove rows with 2 or fewer cleaned word (to avoid LIME ZeroDivisionError)
         train_probas_df = train_probas_df[train_probas_df['cleaned_sentence'].apply(lambda x: len(x.split()) > 2)]
 
         all_class_names = [class_name for class_name in test_probas_df.columns[5:].tolist() if not (class_name.startswith('pred') or class_name.startswith('proba'))]
