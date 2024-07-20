@@ -2,7 +2,7 @@
 
 ![Screenshot of the heatmaps](readme_screenshot.png)
 
-LIME, SHAP and Occlusion heat maps for XGBoost ClassifierChains.
+LIME, SHAP and Occlusion heat maps for XGBoost text classification.
 
 ## Setup
 
