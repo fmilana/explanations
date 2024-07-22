@@ -135,3 +135,4 @@ if __name__ == '__main__':
         print('HTML files saved in output/html/')
     except FileNotFoundError:
         print('JSON not found. Please run generate_json.py first.')
+        exit()

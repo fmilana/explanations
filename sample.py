@@ -8,7 +8,7 @@ import pandas as pd
 
 def _add_distance_to_train_probas_df(task_tuple, train_probas_df):
     train_probas_df_copy = train_probas_df.copy()
-    task_embedding = task_tuple[2]
+    task_embedding = task_tuple[3]
     train_probas_df_copy.loc[:, 'distance'] = pd.to_numeric(train_probas_df_copy['sentence_embedding'].apply(lambda x: np.linalg.norm(x - task_embedding)))
     
     return train_probas_df_copy
@@ -32,7 +32,7 @@ def _sample_tasks(test_probas_df, class_name, sample_type, midpoint, task_dict, 
     task_df.reset_index(drop=True, inplace=True)
 
     for index, row in task_df.iterrows():
-        task_tuple = (row['original_sentence'], row['cleaned_sentence'], row['sentence_embedding'], class_name, row[f'proba {class_name}'], 0.0)
+        task_tuple = (sample_type, row['original_sentence'], row['cleaned_sentence'], row['sentence_embedding'], class_name, row[f'proba {class_name}'], 0.0)
         task_dict[f'{class_name} {sample_type} Task {index + 1}'] = task_tuple
         all_samples_dict[f'{class_name} {sample_type} Task {index + 1}'] = task_tuple
         used_sentences.add(row['original_sentence'])
@@ -74,7 +74,7 @@ def _sample_examples(train_probas_df, class_name, task_name, task_tuple, sample_
 
     for example_index, example_row in examples_df.iterrows():
         example_key = f'{task_name} {sample_type} Example {example_index + 1}'
-        example_tuple = (example_row['original_sentence'], example_row['cleaned_sentence'], class_name, example_row[f'proba {class_name}'], example_row['distance'])
+        example_tuple = (sample_type, example_row['original_sentence'], example_row['cleaned_sentence'], class_name, example_row[f'proba {class_name}'], example_row['distance'])
         all_samples_dict[example_key] = example_tuple
 
         sampled += 1
@@ -122,11 +122,11 @@ def _generate_samples_csvs(test_probas_df, train_probas_df, class_names):
         pattern = rf'^{re.escape(class_name)} (TP|FN|FP) Task (\d)$'
         for key in all_samples_dict.keys():
             if re.match(pattern, key):
-                original_sentence, cleaned_sentence, _, class_name, proba, distance = all_samples_dict[key]
-                all_samples_dict[key] = (original_sentence, cleaned_sentence, class_name, proba, distance)
+                category, original_sentence, cleaned_sentence, _, class_name, proba, distance = all_samples_dict[key]
+                all_samples_dict[key] = (category, original_sentence, cleaned_sentence, class_name, proba, distance)
 
     # save study samples to csv
-    samples_df = pd.DataFrame.from_dict(all_samples_dict, orient='index', columns=['original_sentence', 'cleaned_sentence', 'class_name', 'proba', 'distance'])
+    samples_df = pd.DataFrame.from_dict(all_samples_dict, orient='index', columns=['category', 'original_sentence', 'cleaned_sentence', 'class_name', 'proba', 'distance'])
     # reset the index to turn it into a column, and add the "name" column
     samples_df.reset_index(inplace=True)
     samples_df.rename(columns={'index': 'name'}, inplace=True)
@@ -179,7 +179,7 @@ if __name__ == '__main__':
                 class_names = args_class_names
         except ValueError as e:
             print(e)
-            print('Please provide valid class names to sample tasks and examples for')
+            print('Please provide valid class names to sample tasks and examples for.')
             print('Valid class names are:', all_class_names)
             exit()
 

@@ -14,7 +14,7 @@ from custom_pipeline import CustomPipeline
 from tqdm import tqdm
 
 
-def _create_json_entry(sentence, cleaned_sentence, proba, distance, lime_weights, shap_weights, occlusion_weights):
+def _create_json_entry(sentence, cleaned_sentence, class_name, category, proba, distance, lime_weights, shap_weights, occlusion_weights):
     # extract tokens from sentence (including punctuation, symbols and whitespace)
     tokens = regex.findall(r'\b\p{L}+\b|\S|\s', sentence)
     # extract words from cleaned_sentence
@@ -25,16 +25,18 @@ def _create_json_entry(sentence, cleaned_sentence, proba, distance, lime_weights
     for token in tokens:
         if token in cleaned_words:
             index = cleaned_words.index(token)
-            parts.append({'token': token, 'lime_weight': lime_weights[index], 'shap_weight': shap_weights[index], 'occlusion_weight': occlusion_weights[index]})
+            parts.append({'token': token, 'ignored': 0.0, 'lime_weight': lime_weights[index], 'shap_weight': shap_weights[index], 'occlusion_weight': occlusion_weights[index]})
             cleaned_words.pop(index)
             lime_weights.pop(index)
             shap_weights.pop(index)
             occlusion_weights.pop(index)
         else:
-            parts.append({'token': token, 'lime_weight': 0.0, 'shap_weight': 0.0, 'occlusion_weight': 0.0})
+            parts.append({'token': token, 'ignored': 1.0, 'lime_weight': 0.0, 'shap_weight': 0.0, 'occlusion_weight': 0.0})
 
     return {
         'sentence': sentence,
+        'class_name': class_name,
+        'category': category,
         'score': proba,
         'distance': distance,
         'parts': parts
@@ -57,6 +59,7 @@ def _generate_file(clf, class_names, samples_df, json_path, lime_optimized):
 
     for sample in tqdm(sample_dict, desc='Processing sentences'):
         name = sample['name']
+        category = sample['category']
         original_sentence = sample['original_sentence']
         cleaned_sentence = sample['cleaned_sentence']
         proba = sample['proba']
@@ -64,7 +67,7 @@ def _generate_file(clf, class_names, samples_df, json_path, lime_optimized):
         class_name = sample['class_name']
 
         lime_weights, shap_weights, occlusion_weights = _get_all_weights(pipeline, class_names, cleaned_sentence, class_name, proba, lime_optimized)
-        json_dict[name] = _create_json_entry(original_sentence, cleaned_sentence, proba, distance, lime_weights, shap_weights, occlusion_weights)
+        json_dict[name] = _create_json_entry(original_sentence, cleaned_sentence, class_name, category, proba, distance, lime_weights, shap_weights, occlusion_weights)
 
     with open(json_path, 'w', encoding='utf-8') as f:
         json.dump(json_dict, f, indent=4, ensure_ascii=False)
@@ -83,3 +86,4 @@ if __name__ == '__main__':
         print('\nJSON generated.')
     except FileNotFoundError as e:
         print('Model and/or data not found. Please run train.py and sample.py first.')
+        exit()

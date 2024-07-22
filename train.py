@@ -170,3 +170,4 @@ if __name__ == '__main__':
         print('Model saved in model/')
     except FileNotFoundError as e:
         print('data/data.csv not found.')
+        exit()

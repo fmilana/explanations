@@ -132,3 +132,4 @@ if __name__ == '__main__':
         print('data/test.csv')
         print('model/xgboost.json')
         print('Please run train.py first.')
+        exit()

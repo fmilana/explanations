@@ -75,3 +75,8 @@ python generate_json.py
 ```
 python generate_html.py
 ```
+
+6. Generate LIME sorted weight list per class category (saved in output/weights/):
+```
+python list_weights.py
+```
