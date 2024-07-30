@@ -65,7 +65,7 @@ or sample sentences from selected classes only:
 python sample.py --class-names "food and drinks" "opinions"
 ```
 
-4. Generate JSON (saved in output/json/output.json):
+4. Generate JSON (saved in output/json/train_output.json and output/json/samples_output):
 
 ```
 python generate_json.py
@@ -76,7 +76,7 @@ python generate_json.py
 python generate_html.py
 ```
 
-6. Generate LIME sorted weight list per class category (saved in output/weights/):
+6. Generate LIME sorted weight list per class category from train_output.json (saved in output/weights/):
 ```
 python list_weights.py
 ```

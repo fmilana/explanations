@@ -128,8 +128,8 @@ def _generate_files(results_json, html_paths):
 
 if __name__ == '__main__':
     try:
-        results_json = json.load(open('output/json/output.json', 'r', encoding='utf-8'))
-        html_paths = ['output/html/output.html', 'output/html/original.html', 'output/html/lime.html', 'output/html/shap.html', 'output/html/occlusion.html']
+        results_json = json.load(open('output/json/samples_output.json', 'r', encoding='utf-8'))
+        html_paths = ['output/html/samples_output.html', 'output/html/samples_original.html', 'output/html/samples_lime.html', 'output/html/samples_shap.html', 'output/html/samples_occlusion.html']
         print('Generating HTML files...')
         _generate_files(results_json, html_paths)
         print('HTML files saved in output/html/')
